@@ -1010,7 +1010,7 @@ void setup() {
     IPAddress(255, 255, 255, 0)   // Subnet mask
   );
   
-  if (!WiFi.softAP(ssid, password, 6, 0, 4)) { // Channel 6, not hidden, max 4 connections
+  if (!WiFi.softAP(ssid, password, 6, 0, 1)) { // Channel 6, not hidden, max 1 connection
     Serial.println("WiFi AP setup failed!");
     lcd.setCursor(0, 3);
     lcd.print("WiFi AP Failed");
