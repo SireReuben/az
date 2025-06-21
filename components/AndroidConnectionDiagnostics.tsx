@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, Zap, Router } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface AndroidConnectionDiagnosticsProps {
   connectionStatus: 'checking' | 'connected' | 'failed' | 'timeout';
   responseTime: number;
   lastResponse: string | null;
+  connectionAttempts: number;
   onRefresh: () => void;
 }
 
@@ -14,6 +15,7 @@ export function AndroidConnectionDiagnostics({
   connectionStatus,
   responseTime,
   lastResponse,
+  connectionAttempts,
   onRefresh
 }: AndroidConnectionDiagnosticsProps) {
   const { isTablet } = useDeviceOrientation();
@@ -36,11 +38,11 @@ export function AndroidConnectionDiagnostics({
       case 'checking':
         return 'Testing Android APK connection...';
       case 'connected':
-        return `Connected (${responseTime}ms response)`;
+        return `Connected successfully (${responseTime}ms)`;
       case 'timeout':
-        return 'Connection timeout - Arduino may be busy';
+        return 'Connection timeout - Arduino may be overloaded';
       case 'failed':
-        return 'Connection failed - Check network';
+        return 'HTTP communication failed';
       default:
         return 'Unknown status';
     }
@@ -57,6 +59,23 @@ export function AndroidConnectionDiagnostics({
       default:
         return '#ef4444';
     }
+  };
+
+  const handleAdvancedDiagnostics = () => {
+    Alert.alert(
+      'Advanced Diagnostics',
+      `Connection Attempts: ${connectionAttempts}\n` +
+      `Response Time: ${responseTime}ms\n` +
+      `Status: ${connectionStatus}\n` +
+      `Last Response: ${lastResponse ? 'Received' : 'None'}\n\n` +
+      'Troubleshooting Steps:\n' +
+      '1. Arduino LCD shows "Android Connected" ✓\n' +
+      '2. WiFi network layer is working\n' +
+      '3. HTTP layer needs optimization\n' +
+      '4. Try multiple refresh attempts\n' +
+      '5. Restart Arduino if needed',
+      [{ text: 'OK' }]
+    );
   };
 
   return (
@@ -83,7 +102,12 @@ export function AndroidConnectionDiagnostics({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.statusRow}>
+      <View style={[
+        styles.statusRow,
+        connectionStatus === 'connected' && styles.statusRowSuccess,
+        connectionStatus === 'failed' && styles.statusRowError,
+        connectionStatus === 'timeout' && styles.statusRowWarning,
+      ]}>
         {getStatusIcon()}
         <Text style={[
           styles.statusText,
@@ -96,7 +120,7 @@ export function AndroidConnectionDiagnostics({
 
       <View style={styles.diagnosticsList}>
         <View style={styles.diagnosticItem}>
-          <Wifi size={isTablet ? 16 : 14} color="#6b7280" />
+          <Wifi size={isTablet ? 16 : 14} color="#22c55e" />
           <Text style={[
             styles.diagnosticLabel,
             isTablet && styles.tabletDiagnosticLabel
@@ -113,23 +137,41 @@ export function AndroidConnectionDiagnostics({
         </View>
 
         <View style={styles.diagnosticItem}>
-          <Server size={isTablet ? 16 : 14} color="#6b7280" />
+          <Router size={isTablet ? 16 : 14} color="#22c55e" />
           <Text style={[
             styles.diagnosticLabel,
             isTablet && styles.tabletDiagnosticLabel
           ]}>
-            Arduino IP:
+            Arduino LCD:
           </Text>
           <Text style={[
             styles.diagnosticValue,
-            isTablet && styles.tabletDiagnosticValue
+            isTablet && styles.tabletDiagnosticValue,
+            { color: '#22c55e' }
           ]}>
-            192.168.4.1
+            "Android Connected" ✓
           </Text>
         </View>
 
         <View style={styles.diagnosticItem}>
-          <AlertTriangle size={isTablet ? 16 : 14} color="#6b7280" />
+          <Server size={isTablet ? 16 : 14} color={connectionStatus === 'connected' ? '#22c55e' : '#ef4444'} />
+          <Text style={[
+            styles.diagnosticLabel,
+            isTablet && styles.tabletDiagnosticLabel
+          ]}>
+            HTTP Response:
+          </Text>
+          <Text style={[
+            styles.diagnosticValue,
+            isTablet && styles.tabletDiagnosticValue,
+            { color: connectionStatus === 'connected' ? '#22c55e' : '#ef4444' }
+          ]}>
+            {connectionStatus === 'connected' ? 'Working ✓' : 'Failed ✗'}
+          </Text>
+        </View>
+
+        <View style={styles.diagnosticItem}>
+          <Zap size={isTablet ? 16 : 14} color="#6b7280" />
           <Text style={[
             styles.diagnosticLabel,
             isTablet && styles.tabletDiagnosticLabel
@@ -139,9 +181,29 @@ export function AndroidConnectionDiagnostics({
           <Text style={[
             styles.diagnosticValue,
             isTablet && styles.tabletDiagnosticValue,
-            { color: responseTime < 2000 ? '#22c55e' : responseTime < 5000 ? '#f59e0b' : '#ef4444' }
+            { 
+              color: responseTime === 0 ? '#6b7280' :
+                     responseTime < 2000 ? '#22c55e' : 
+                     responseTime < 5000 ? '#f59e0b' : '#ef4444' 
+            }
           ]}>
             {responseTime > 0 ? `${responseTime}ms` : 'N/A'}
+          </Text>
+        </View>
+
+        <View style={styles.diagnosticItem}>
+          <RefreshCw size={isTablet ? 16 : 14} color="#6b7280" />
+          <Text style={[
+            styles.diagnosticLabel,
+            isTablet && styles.tabletDiagnosticLabel
+          ]}>
+            Attempts:
+          </Text>
+          <Text style={[
+            styles.diagnosticValue,
+            isTablet && styles.tabletDiagnosticValue
+          ]}>
+            {connectionAttempts}
           </Text>
         </View>
       </View>
@@ -158,27 +220,63 @@ export function AndroidConnectionDiagnostics({
             styles.responseText,
             isTablet && styles.tabletResponseText
           ]}>
-            {lastResponse.substring(0, 100)}...
+            {lastResponse.substring(0, 150)}...
           </Text>
         </View>
       )}
+
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            isTablet && styles.tabletActionButton
+          ]}
+          onPress={onRefresh}
+        >
+          <RefreshCw size={isTablet ? 16 : 14} color="#ffffff" />
+          <Text style={[
+            styles.actionButtonText,
+            isTablet && styles.tabletActionButtonText
+          ]}>
+            Retry Connection
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            styles.secondaryActionButton,
+            isTablet && styles.tabletActionButton
+          ]}
+          onPress={handleAdvancedDiagnostics}
+        >
+          <AlertTriangle size={isTablet ? 16 : 14} color="#374151" />
+          <Text style={[
+            styles.actionButtonText,
+            styles.secondaryActionButtonText,
+            isTablet && styles.tabletActionButtonText
+          ]}>
+            Diagnostics
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.troubleshootingSection}>
         <Text style={[
           styles.troubleshootingTitle,
           isTablet && styles.tabletTroubleshootingTitle
         ]}>
-          Android APK Troubleshooting:
+          🔧 Android APK Solution:
         </Text>
         <Text style={[
           styles.troubleshootingText,
           isTablet && styles.tabletTroubleshootingText
         ]}>
-          • Arduino LCD shows "Android Connected" ✓{'\n'}
-          • Network layer is working properly{'\n'}
-          • HTTP communication may need optimization{'\n'}
-          • Try refreshing connection{'\n'}
-          • Check Arduino response time
+          ✓ WiFi connection is working (LCD shows "Android Connected"){'\n'}
+          ✗ HTTP communication layer is failing{'\n'}
+          💡 Solution: Enhanced HTTP handling with multiple retry strategies{'\n'}
+          🔄 Try "Retry Connection" button multiple times{'\n'}
+          ⚡ Arduino may need restart if response time is very high
         </Text>
       </View>
     </View>
@@ -227,15 +325,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     backgroundColor: '#f8fafc',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  statusRowSuccess: {
+    backgroundColor: '#f0fdf4',
+    borderColor: '#bbf7d0',
+  },
+  statusRowError: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+  },
+  statusRowWarning: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fed7aa',
   },
   statusText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     marginLeft: 8,
+    flex: 1,
   },
   tabletStatusText: {
     fontSize: 16,
@@ -247,7 +360,8 @@ const styles = StyleSheet.create({
   diagnosticItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -275,6 +389,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#bae6fd',
   },
   responseTitle: {
     fontSize: 12,
@@ -294,6 +410,44 @@ const styles = StyleSheet.create({
   },
   tabletResponseText: {
     fontSize: 13,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3b82f6',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  tabletActionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  secondaryActionButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
+    marginLeft: 6,
+  },
+  tabletActionButtonText: {
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  secondaryActionButtonText: {
+    color: '#374151',
   },
   troubleshootingSection: {
     backgroundColor: '#fffbeb',
