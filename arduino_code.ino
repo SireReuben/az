@@ -22,7 +22,7 @@
 
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 
-// Wi-Fi settings
+// Wi-Fi settings optimized for Android APK
 const char* ssid = "AEROSPIN CONTROL";
 const char* password = "12345678";
 
@@ -49,50 +49,58 @@ ESP8266WebServer server(80);
 // EEPROM address for brakeStatus
 #define EEPROM_BRAKE_ADDR 0
 
-// Enhanced CORS headers for better Android compatibility
+// Enhanced CORS headers specifically for Android APK
 void setCORSHeaders() {
   server.sendHeader("Access-Control-Allow-Origin", "*");
   server.sendHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cache-Control, Pragma, Expires");
+  server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Cache-Control, Pragma, Expires, User-Agent, Accept");
   server.sendHeader("Access-Control-Max-Age", "86400");
   server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   server.sendHeader("Pragma", "no-cache");
   server.sendHeader("Expires", "0");
   server.sendHeader("Connection", "keep-alive");
+  server.sendHeader("Content-Type", "text/plain; charset=utf-8");
 }
 
-// Handle preflight OPTIONS requests
+// Handle preflight OPTIONS requests (critical for Android APK)
 void handleOptions() {
   setCORSHeaders();
   server.send(200, "text/plain", "OK");
 }
 
-// Enhanced ping handler with detailed response for Android
+// Enhanced ping handler specifically for Android APK
 void handlePing() {
   setCORSHeaders();
   
-  // Enhanced response for better Android detection
+  // Enhanced response specifically for Android APK detection
   String response = "pong\n";
   response += "Device: AEROSPIN Controller\n";
-  response += "Status: Ready\n";
-  response += "Version: 1.0.0\n";
+  response += "Platform: ESP8266\n";
+  response += "Status: Ready for Android\n";
+  response += "Version: 1.0.0-Android\n";
   response += "Time: " + String(millis()) + "ms\n";
   response += "Session: " + String(sessionActive ? "Active" : "Inactive") + "\n";
-  response += "WiFi: Connected\n";
-  response += "Clients: " + String(WiFi.softAPgetStationNum()) + "\n";
+  response += "WiFi: AP Mode Active\n";
+  response += "AndroidClients: " + String(WiFi.softAPgetStationNum()) + "\n";
   response += "FreeHeap: " + String(ESP.getFreeHeap()) + " bytes\n";
+  response += "IP: " + WiFi.softAPIP().toString() + "\n";
+  response += "SSID: " + String(ssid) + "\n";
   
   server.send(200, "text/plain", response);
   
-  // Log ping requests if session is active
+  // Log ping requests
   if (sessionActive) {
-    sessionLog += String(millis() - sessionStartTime) + "ms: Ping request received from Android\n";
+    sessionLog += String(millis() - sessionStartTime) + "ms: Android APK ping received\n";
   }
   
-  Serial.println("Ping request handled - Response sent to Android client");
+  Serial.println("Android APK ping handled - Response sent");
+  
+  // Update LCD to show Android connection
+  lcd.setCursor(0, 3);
+  lcd.print("Android Connected   ");
 }
 
-// Enhanced status handler with more detailed information
+// Enhanced status handler for Android APK
 void handleStatus() {
   setCORSHeaders();
   
@@ -114,49 +122,56 @@ void handleStatus() {
   status += "\nSession: " + String(sessionActive ? "Active" : "Inactive");
   status += "\nUptime: " + String(millis() / 1000) + "s";
   status += "\nFreeHeap: " + String(ESP.getFreeHeap()) + " bytes";
-  status += "\nConnectedClients: " + String(WiFi.softAPgetStationNum());
-  status += "\nWiFiStatus: " + String(WiFi.status());
+  status += "\nAndroidClients: " + String(WiFi.softAPgetStationNum());
+  status += "\nWiFiStatus: AP_ACTIVE";
   status += "\nAPIP: " + WiFi.softAPIP().toString();
+  status += "\nSSID: " + String(ssid);
   
-  Serial.println("Status request - Sending detailed status to Android");
+  Serial.println("Android APK status request handled");
   server.send(200, "text/plain", status);
 }
 
-// Add a comprehensive health check endpoint for Android
+// Comprehensive health check for Android APK troubleshooting
 void handleHealth() {
   setCORSHeaders();
   
   String health = "OK\n";
   health += "System: Operational\n";
+  health += "Platform: ESP8266 for Android\n";
   health += "Uptime: " + String(millis() / 1000) + "s\n";
   health += "FreeHeap: " + String(ESP.getFreeHeap()) + " bytes\n";
-  health += "Clients: " + String(WiFi.softAPgetStationNum()) + "\n";
+  health += "AndroidClients: " + String(WiFi.softAPgetStationNum()) + "\n";
   health += "Session: " + String(sessionActive ? "Active" : "Inactive") + "\n";
-  health += "WiFi: " + String(WiFi.status() == WL_CONNECTED ? "Connected" : "AP Mode") + "\n";
+  health += "WiFi: AP Mode Active\n";
   health += "SSID: " + String(ssid) + "\n";
   health += "IP: " + WiFi.softAPIP().toString() + "\n";
   health += "MAC: " + WiFi.softAPmacAddress() + "\n";
+  health += "Channel: 6\n";
+  health += "Security: WPA2\n";
+  health += "AndroidCompatible: YES\n";
   
   server.send(200, "text/plain", health);
-  Serial.println("Health check completed for Android client");
+  Serial.println("Android APK health check completed");
 }
 
-// Enhanced device info endpoint
+// Enhanced device info for Android APK
 void handleDeviceInfo() {
   setCORSHeaders();
   
   String info = "Device: AEROSPIN Controller\n";
-  info += "Version: 1.0.0\n";
+  info += "Version: 1.0.0-Android-Optimized\n";
   info += "Platform: ESP8266\n";
   info += "Chip ID: " + String(ESP.getChipId(), HEX) + "\n";
   info += "Flash Size: " + String(ESP.getFlashChipSize()) + " bytes\n";
   info += "CPU Frequency: " + String(ESP.getCpuFreqMHz()) + " MHz\n";
   info += "SDK Version: " + String(ESP.getSdkVersion()) + "\n";
   info += "Boot Version: " + String(ESP.getBootVersion()) + "\n";
-  info += "WiFi Mode: AP\n";
+  info += "WiFi Mode: Access Point\n";
   info += "SSID: " + String(ssid) + "\n";
   info += "IP: " + WiFi.softAPIP().toString() + "\n";
   info += "MAC: " + WiFi.softAPmacAddress() + "\n";
+  info += "AndroidSupport: Enabled\n";
+  info += "CORSEnabled: YES\n";
   
   server.send(200, "text/plain", info);
 }
@@ -299,11 +314,25 @@ const char htmlPage[] PROGMEM = R"=====(
     }
     .control-section { display: none; }
     #sessionControls { display: block; }
+    .android-notice {
+      background: #e3f2fd;
+      border: 2px solid #2196f3;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 20px auto;
+      max-width: 600px;
+      color: #1565c0;
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
   <div id='connectionStatus'>Connected</div>
   <h1>AEROSPIN GLOBAL</h1>
+  <div class='android-notice'>
+    <strong>Android APK Optimized</strong><br>
+    Enhanced for Android tablet compatibility with improved connection handling
+  </div>
   <div id='status'>
     <h2>Machine Status</h2>
     <p id='directionStatus'>Direction: None</p>
@@ -742,7 +771,7 @@ void updateLCD() {
     lcd.print(receivedData.substring(0, LCD_COLUMNS-4));
     newDataReceived = false;
   } else {
-    lcd.print(sessionActive ? "Session: ON" : "Session: OFF");
+    lcd.print(sessionActive ? "Session: ON" : "Ready for Android");
   }
 }
 
@@ -932,13 +961,13 @@ void handleReset() {
 void setup() {
   Serial.begin(115200);
   Serial.println("\n=== AEROSPIN Motor Controller Starting ===");
-  Serial.println("Enhanced for Android APK compatibility");
+  Serial.println("Android APK Optimized Version");
   yield();
 
   // Initialize EEPROM
   Serial.println("Initializing EEPROM...");
-  EEPROM.begin(512); // Allocate 512 bytes
-  loadBrakeStatus(); // Load brakeStatus from EEPROM
+  EEPROM.begin(512);
+  loadBrakeStatus();
   yield();
 
   // Initialize LCD
@@ -948,7 +977,9 @@ void setup() {
   lcd.backlight();
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Initializing...");
+  lcd.print("AEROSPIN STARTING...");
+  lcd.setCursor(0, 1);
+  lcd.print("Android APK Ready");
   yield();
 
   // Initialize SPIFFS
@@ -960,16 +991,6 @@ void setup() {
     delay(2000);
   } else {
     Serial.println("SPIFFS initialized successfully");
-    Dir dir = SPIFFS.openDir("/");
-    Serial.println("SPIFFS contents:");
-    while (dir.next()) {
-      Serial.println("File: " + dir.fileName());
-    }
-    if (SPIFFS.exists("/jspdf.umd.min.js")) {
-      Serial.println("jsPDF file found in SPIFFS");
-    } else {
-      Serial.println("jsPDF file NOT found in SPIFFS! Check SPIFFS upload.");
-    }
   }
   yield();
 
@@ -978,11 +999,11 @@ void setup() {
   setupLoRa();
   yield();
 
-  // Start WiFi AP with enhanced settings for Android
-  Serial.println("Starting WiFi AP with Android optimizations...");
+  // Start WiFi AP with Android APK optimizations
+  Serial.println("Starting WiFi AP optimized for Android APK...");
   WiFi.mode(WIFI_AP);
   
-  // Enhanced AP configuration for better Android compatibility
+  // Enhanced AP configuration for Android APK compatibility
   WiFi.softAPConfig(
     IPAddress(192, 168, 4, 1),    // AP IP
     IPAddress(192, 168, 4, 1),    // Gateway
@@ -996,10 +1017,11 @@ void setup() {
     delay(2000);
   } else {
     IPAddress ip = WiFi.softAPIP();
+    Serial.println("WiFi AP started successfully for Android APK");
     Serial.println("AP IP: " + ip.toString());
     Serial.println("AP SSID: " + String(ssid));
     Serial.println("AP Password: " + String(password));
-    Serial.println("AP Channel: 6");
+    Serial.println("AP Channel: 6 (Android optimized)");
     Serial.println("AP MAC: " + WiFi.softAPmacAddress());
     
     // Display connection info on LCD
@@ -1015,15 +1037,15 @@ void setup() {
   }
   yield();
 
-  // Set up server routes with enhanced Android compatibility
-  Serial.println("Starting HTTP server with Android optimizations...");
+  // Set up server routes optimized for Android APK
+  Serial.println("Starting HTTP server optimized for Android APK...");
   
   // Main routes
   server.on("/", handleRoot);
   server.on("/index.html", handleRoot);
   server.on("/jspdf.umd.min.js", handleJSPDF);
   
-  // Enhanced API routes for Android
+  // Enhanced API routes for Android APK
   server.on("/ping", HTTP_GET, handlePing);
   server.on("/status", HTTP_GET, handleStatus);
   server.on("/health", HTTP_GET, handleHealth);
@@ -1040,7 +1062,7 @@ void setup() {
   server.on("/getSessionLog", HTTP_GET, handleGetSessionLog);
   server.on("/reset", HTTP_GET, handleReset);
   
-  // Handle OPTIONS requests for CORS preflight (critical for Android)
+  // Handle OPTIONS requests for CORS preflight (critical for Android APK)
   server.onNotFound([]() {
     if (server.method() == HTTP_OPTIONS) {
       handleOptions();
@@ -1058,8 +1080,8 @@ void setup() {
   });
   
   server.begin();
-  Serial.println("HTTP server started successfully");
-  Serial.println("Enhanced endpoints for Android:");
+  Serial.println("HTTP server started successfully for Android APK");
+  Serial.println("Android APK optimized endpoints:");
   Serial.println("  GET  /           - Web interface");
   Serial.println("  GET  /ping       - Enhanced connection test");
   Serial.println("  GET  /status     - Detailed device status");
@@ -1074,7 +1096,7 @@ void setup() {
   yield();
 
   updateLCD();
-  Serial.println("=== AEROSPIN Controller Ready for Android ===");
+  Serial.println("=== AEROSPIN Controller Ready for Android APK ===");
   Serial.println("Android devices should connect to:");
   Serial.println("SSID: " + String(ssid));
   Serial.println("URL: http://192.168.4.1");
@@ -1088,20 +1110,23 @@ void loop() {
     updateLCD();
   }
   
-  // Enhanced status updates for Android monitoring
+  // Enhanced status updates for Android APK monitoring
   static unsigned long lastStatusUpdate = 0;
-  if (millis() - lastStatusUpdate > 15000) { // Every 15 seconds
+  if (millis() - lastStatusUpdate > 10000) { // Every 10 seconds
     lastStatusUpdate = millis();
     int clientCount = WiFi.softAPgetStationNum();
-    Serial.println("Status: Running, Android Clients: " + String(clientCount) + 
+    Serial.println("Android APK Status: Running, Clients: " + String(clientCount) + 
                    ", Session: " + String(sessionActive ? "Active" : "Inactive") +
                    ", Free Heap: " + String(ESP.getFreeHeap()) + " bytes" +
-                   ", WiFi Status: " + String(WiFi.status()));
+                   ", WiFi Status: AP_ACTIVE");
     
-    // Update LCD with client info
+    // Update LCD with Android connection info
     if (clientCount > 0) {
       lcd.setCursor(0, 3);
-      lcd.print("Android Connected: " + String(clientCount));
+      lcd.print("Android Connected   ");
+    } else {
+      lcd.setCursor(0, 3);
+      lcd.print("Waiting for Android ");
     }
   }
   

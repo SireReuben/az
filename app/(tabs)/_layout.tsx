@@ -6,21 +6,20 @@ import {
   Bell,
 } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
+import { Platform, StyleSheet } from 'react-native';
 
 export default function TabLayout() {
-  const { isTablet, isLandscape, screenType, isWideScreen } = useDeviceOrientation();
+  const { isTablet, isLandscape, screenType, width, height } = useDeviceOrientation();
 
   // Enhanced tab bar styling for landscape tablets
   const getTabBarHeight = () => {
-    if (screenType === 'desktop') return 80;
-    if (isTablet && isLandscape) return isWideScreen ? 70 : 75;
+    if (isTablet && isLandscape) return 70;
     if (isTablet) return 85;
     return 75;
   };
 
   const getTabBarPadding = () => {
-    if (screenType === 'desktop') return { top: 16, bottom: 20, horizontal: 24 };
-    if (isTablet && isLandscape) return { top: 12, bottom: 16, horizontal: 20 };
+    if (isTablet && isLandscape) return { top: 8, bottom: 12, horizontal: 16 };
     if (isTablet) return { top: 16, bottom: 24, horizontal: 16 };
     return { top: 12, bottom: 20, horizontal: 8 };
   };
@@ -45,11 +44,16 @@ export default function TabLayout() {
           bottom: 0,
           left: 0,
           right: 0,
+          // Force full width on Android tablets
+          ...(Platform.OS === 'android' && isTablet && isLandscape && {
+            minWidth: width,
+            maxWidth: width,
+          }),
         },
         tabBarActiveTintColor: '#ffffff',
         tabBarInactiveTintColor: '#93c5fd',
         tabBarLabelStyle: {
-          fontSize: isTablet ? (isLandscape ? 13 : 14) : 12,
+          fontSize: isTablet ? (isLandscape ? 12 : 14) : 12,
           fontFamily: 'Inter-Medium',
           marginTop: 4,
           marginBottom: 4,
@@ -66,7 +70,7 @@ export default function TabLayout() {
         options={{
           title: 'Sessions',
           tabBarIcon: ({ size, color }) => (
-            <Play size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
+            <Play size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
           ),
         }}
       />
@@ -75,7 +79,7 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ size, color }) => (
-            <Gauge size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
+            <Gauge size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
           ),
         }}
       />
@@ -84,7 +88,7 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ size, color }) => (
-            <Settings size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
+            <Settings size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
           ),
         }}
       />
@@ -93,7 +97,7 @@ export default function TabLayout() {
         options={{
           title: 'Alerts',
           tabBarIcon: ({ size, color }) => (
-            <Bell size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
+            <Bell size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
           ),
         }}
       />

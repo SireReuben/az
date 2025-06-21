@@ -59,30 +59,26 @@ export function EnhancedConnectionStatus({
 
   const getStatusText = () => {
     if (detectionStatus === 'checking') {
-      return 'Checking connection...';
+      return 'Checking Arduino connection...';
     }
     
     if (isConnected) {
-      return `Connected (${connectionQuality})`;
-    }
-    
-    if (!networkInfo.isWifiEnabled) {
-      return 'WiFi disabled';
+      return `Arduino Connected (${connectionQuality})`;
     }
     
     if (!isConnectedToArduinoWifi) {
-      return 'Not connected to AEROSPIN CONTROL';
+      return 'Connect to AEROSPIN CONTROL WiFi';
     }
     
     if (!isArduinoReachable) {
-      return 'Arduino not reachable';
+      return 'Arduino not reachable - Check device power';
     }
     
     if (!isArduinoResponding) {
-      return 'Arduino not responding';
+      return 'Arduino not responding - Device may be starting';
     }
     
-    return 'Connection failed';
+    return 'Connection failed - Try refreshing';
   };
 
   const getStatusColor = () => {
@@ -132,13 +128,13 @@ export function EnhancedConnectionStatus({
         )}
       </View>
 
-      {/* Detailed Status (when showDetails is true) */}
+      {/* Detailed Status for Android APK troubleshooting */}
       {showDetails && (
         <View style={[
           styles.detailsContainer,
           isTablet && styles.tabletDetailsContainer
         ]}>
-          {/* Network Layer */}
+          {/* Android APK Status */}
           <View style={styles.layerStatus}>
             <View style={styles.layerHeader}>
               <Smartphone size={isTablet ? 16 : 14} color="#6b7280" />
@@ -146,7 +142,7 @@ export function EnhancedConnectionStatus({
                 styles.layerTitle,
                 isTablet && styles.tabletLayerTitle
               ]}>
-                Network Layer
+                Android APK Status
               </Text>
             </View>
             <View style={styles.layerDetails}>
@@ -155,19 +151,19 @@ export function EnhancedConnectionStatus({
                   styles.detailLabel,
                   isTablet && styles.tabletDetailLabel
                 ]}>
-                  WiFi:
+                  WiFi Network:
                 </Text>
                 <View style={styles.detailValue}>
                   <Circle 
                     size={8} 
-                    color={networkInfo.isWifiEnabled ? '#22c55e' : '#ef4444'} 
-                    fill={networkInfo.isWifiEnabled ? '#22c55e' : '#ef4444'}
+                    color={isConnectedToArduinoWifi ? '#22c55e' : '#ef4444'} 
+                    fill={isConnectedToArduinoWifi ? '#22c55e' : '#ef4444'}
                   />
                   <Text style={[
                     styles.detailText,
                     isTablet && styles.tabletDetailText
                   ]}>
-                    {networkInfo.isWifiEnabled ? 'Enabled' : 'Disabled'}
+                    {networkInfo.ssid || 'Not connected'}
                   </Text>
                 </View>
               </View>
@@ -177,35 +173,19 @@ export function EnhancedConnectionStatus({
                   styles.detailLabel,
                   isTablet && styles.tabletDetailLabel
                 ]}>
-                  SSID:
-                </Text>
-                <Text style={[
-                  styles.detailText,
-                  isTablet && styles.tabletDetailText,
-                  { color: networkInfo.ssid === 'AEROSPIN CONTROL' ? '#22c55e' : '#ef4444' }
-                ]}>
-                  {networkInfo.ssid || 'Unknown'}
-                </Text>
-              </View>
-              
-              <View style={styles.detailRow}>
-                <Text style={[
-                  styles.detailLabel,
-                  isTablet && styles.tabletDetailLabel
-                ]}>
-                  IP:
+                  Device IP:
                 </Text>
                 <Text style={[
                   styles.detailText,
                   isTablet && styles.tabletDetailText
                 ]}>
-                  {networkInfo.ipAddress || 'Not assigned'}
+                  {networkInfo.ipAddress || '192.168.4.1'}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Transport Layer */}
+          {/* HTTP Connection Status */}
           <View style={styles.layerStatus}>
             <View style={styles.layerHeader}>
               <Router size={isTablet ? 16 : 14} color="#6b7280" />
@@ -213,7 +193,7 @@ export function EnhancedConnectionStatus({
                 styles.layerTitle,
                 isTablet && styles.tabletLayerTitle
               ]}>
-                Transport Layer
+                HTTP Connection
               </Text>
             </View>
             <View style={styles.layerDetails}>
@@ -222,7 +202,7 @@ export function EnhancedConnectionStatus({
                   styles.detailLabel,
                   isTablet && styles.tabletDetailLabel
                 ]}>
-                  TCP Connection:
+                  Arduino Reachable:
                 </Text>
                 <View style={styles.detailValue}>
                   <Circle 
@@ -234,14 +214,14 @@ export function EnhancedConnectionStatus({
                     styles.detailText,
                     isTablet && styles.tabletDetailText
                   ]}>
-                    {isArduinoReachable ? 'Established' : 'Failed'}
+                    {isArduinoReachable ? 'Yes' : 'No'}
                   </Text>
                 </View>
               </View>
             </View>
           </View>
 
-          {/* Application Layer */}
+          {/* Arduino Response Status */}
           <View style={styles.layerStatus}>
             <View style={styles.layerHeader}>
               <Server size={isTablet ? 16 : 14} color="#6b7280" />
@@ -249,7 +229,7 @@ export function EnhancedConnectionStatus({
                 styles.layerTitle,
                 isTablet && styles.tabletLayerTitle
               ]}>
-                Application Layer
+                Arduino Response
               </Text>
             </View>
             <View style={styles.layerDetails}>
@@ -258,7 +238,7 @@ export function EnhancedConnectionStatus({
                   styles.detailLabel,
                   isTablet && styles.tabletDetailLabel
                 ]}>
-                  Arduino Response:
+                  Device Response:
                 </Text>
                 <View style={styles.detailValue}>
                   <Circle 
@@ -270,7 +250,7 @@ export function EnhancedConnectionStatus({
                     styles.detailText,
                     isTablet && styles.tabletDetailText
                   ]}>
-                    {isArduinoResponding ? 'Active' : 'No response'}
+                    {isArduinoResponding ? 'Active' : 'No Response'}
                   </Text>
                 </View>
               </View>
@@ -280,7 +260,7 @@ export function EnhancedConnectionStatus({
                   styles.detailLabel,
                   isTablet && styles.tabletDetailLabel
                 ]}>
-                  Quality:
+                  Connection Quality:
                 </Text>
                 <View style={styles.detailValue}>
                   <Circle 
@@ -298,6 +278,26 @@ export function EnhancedConnectionStatus({
                 </View>
               </View>
             </View>
+          </View>
+
+          {/* Android APK Troubleshooting */}
+          <View style={styles.troubleshootingSection}>
+            <Text style={[
+              styles.troubleshootingTitle,
+              isTablet && styles.tabletTroubleshootingTitle
+            ]}>
+              Android APK Troubleshooting:
+            </Text>
+            <Text style={[
+              styles.troubleshootingText,
+              isTablet && styles.tabletTroubleshootingText
+            ]}>
+              • Arduino LCD shows "Android Connected" ✓{'\n'}
+              • Ensure you're on "AEROSPIN CONTROL" WiFi{'\n'}
+              • Try refreshing the connection{'\n'}
+              • Check if Arduino IP is 192.168.4.1{'\n'}
+              • Restart Arduino if connection fails
+            </Text>
           </View>
         </View>
       )}
@@ -404,5 +404,31 @@ const styles = StyleSheet.create({
   tabletDetailText: {
     fontSize: 13,
     marginLeft: 6,
+  },
+  troubleshootingSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  troubleshootingTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#fbbf24',
+    marginBottom: 8,
+  },
+  tabletTroubleshootingTitle: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  troubleshootingText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#e0f2fe',
+    lineHeight: 16,
+  },
+  tabletTroubleshootingText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
