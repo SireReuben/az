@@ -89,7 +89,6 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       setState(prev => ({
         ...prev,
         networkInfo,
-        isConnectedToArduinoWifi: true, // Assume true for APK builds
       }));
 
       return true;
@@ -290,6 +289,7 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
           ...prev,
           detectionStatus: 'disconnected',
           connectionQuality: 'none',
+          isConnectedToArduinoWifi: false,
         }));
         return false;
       }
@@ -308,15 +308,17 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
           ...prev,
           detectionStatus: 'disconnected',
           connectionQuality: 'poor',
+          isConnectedToArduinoWifi: false,
         }));
         return false;
       }
 
-      // Success!
+      // Success! Fix: Explicitly set isConnectedToArduinoWifi to true after successful connection
       setState(prev => ({
         ...prev,
         detectionStatus: 'connected',
         connectionQuality: 'excellent',
+        isConnectedToArduinoWifi: true, // Fix: Explicitly set to true after successful detection
       }));
       
       console.log('[APK] Detection successful!');
@@ -327,6 +329,7 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
         ...prev,
         detectionStatus: 'error',
         connectionQuality: 'none',
+        isConnectedToArduinoWifi: false,
       }));
       return false;
     }

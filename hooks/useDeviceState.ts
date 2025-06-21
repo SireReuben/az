@@ -75,9 +75,10 @@ export function useDeviceState() {
       console.log('Fetching device status...');
       const result = await sendCommand('/status', 8000);
       
-      if (result.ok && result.text) {
-        console.log('Device status received:', result.text);
-        parseDeviceStatus(result.text);
+      // Fix: Check for result.data instead of result.text since Arduino returns JSON
+      if (result.ok && result.data) {
+        console.log('Device status received:', result.data);
+        parseDeviceStatus(result.data);
       } else {
         console.log('Device status request failed:', result.status);
       }
@@ -86,26 +87,26 @@ export function useDeviceState() {
     }
   }, [isConnected, sendCommand]);
 
-  const parseDeviceStatus = useCallback((statusText: string) => {
+  // Fix: Update parseDeviceStatus to handle JSON object instead of text
+  const parseDeviceStatus = useCallback((statusData: any) => {
     try {
-      console.log('Parsing device status:', statusText);
-      const lines = statusText.split('\n');
+      console.log('Parsing device status:', statusData);
       const updates: Partial<DeviceState> = {};
 
-      lines.forEach(line => {
-        const trimmedLine = line.trim();
-        if (trimmedLine.startsWith('Direction: ')) {
-          updates.direction = trimmedLine.replace('Direction: ', '');
-        } else if (trimmedLine.startsWith('Brake: ')) {
-          updates.brake = trimmedLine.replace('Brake: ', '');
-        } else if (trimmedLine.startsWith('Speed: ')) {
-          updates.speed = parseInt(trimmedLine.replace('Speed: ', '')) || 0;
-        } else if (trimmedLine.startsWith('Session: ')) {
-          const sessionStatus = trimmedLine.replace('Session: ', '');
-          updates.sessionActive = sessionStatus === 'Active';
-          console.log('Parsed session status from Arduino:', sessionStatus, '-> sessionActive:', updates.sessionActive);
-        }
-      });
+      // Parse JSON object directly instead of splitting text lines
+      if (statusData.direction !== undefined) {
+        updates.direction = statusData.direction;
+      }
+      if (statusData.brake !== undefined) {
+        updates.brake = statusData.brake;
+      }
+      if (statusData.speed !== undefined) {
+        updates.speed = parseInt(statusData.speed) || 0;
+      }
+      if (statusData.sessionActive !== undefined) {
+        updates.sessionActive = statusData.sessionActive === true || statusData.sessionActive === 'true';
+        console.log('Parsed session status from Arduino:', statusData.sessionActive, '-> sessionActive:', updates.sessionActive);
+      }
 
       if (Object.keys(updates).length > 0) {
         console.log('Updating device state with parsed data:', updates);
@@ -213,7 +214,7 @@ export function useDeviceState() {
       try {
         const result = await sendCommand('/endSession');
         if (result.ok) {
-          console.log('Session ended. Final log:', result.text);
+          console.log('Session ended. Final log:', result.data || result.text);
           addSessionEvent('Session data saved to device');
         }
       } catch (error) {
