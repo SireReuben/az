@@ -37,7 +37,9 @@
       "usesCleartextTraffic": true,
       "networkSecurityConfig": "@xml/network_security_config",
       "allowBackup": false,
-      "requestLegacyExternalStorage": true
+      "requestLegacyExternalStorage": true,
+      "targetSdkVersion": 34,
+      "compileSdkVersion": 34
     },
     "web": {
       "bundler": "metro",
