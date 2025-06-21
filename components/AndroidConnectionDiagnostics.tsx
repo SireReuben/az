@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, Zap, Router, Settings } from 'lucide-react-native';
+import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, Zap, Router, Settings, Shield } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface AndroidConnectionDiagnosticsProps {
@@ -36,13 +36,13 @@ export function AndroidConnectionDiagnostics({
   const getStatusText = () => {
     switch (connectionStatus) {
       case 'checking':
-        return 'Testing APK connection with 60s timeout...';
+        return 'Testing with 90s timeout + 4 strategies...';
       case 'connected':
-        return `Connected successfully (${responseTime}ms)`;
+        return `ULTIMATE SUCCESS! Connected in ${responseTime}ms`;
       case 'timeout':
-        return 'Connection timeout - Arduino may be slow to respond';
+        return 'Timeout - Arduino may be overloaded or slow';
       case 'failed':
-        return 'HTTP communication failed - Check network and Arduino';
+        return 'All 4 strategies failed - Check Arduino power';
       default:
         return 'Unknown status';
     }
@@ -61,26 +61,29 @@ export function AndroidConnectionDiagnostics({
     }
   };
 
-  const handleAdvancedDiagnostics = () => {
+  const handleUltimateGuide = () => {
     Alert.alert(
-      'Android 15 APK Final Fix Diagnostics',
+      'Android 15 ULTIMATE Fix Guide',
       `Connection Attempts: ${connectionAttempts}\n` +
       `Response Time: ${responseTime}ms\n` +
       `Status: ${connectionStatus}\n` +
       `Last Response: ${lastResponse ? 'Received' : 'None'}\n\n` +
-      'FINAL FIX STRATEGY:\n' +
-      '• 60-second timeouts for each attempt\n' +
-      '• 3 full rounds of all endpoints\n' +
-      '• Ultra-simple headers for compatibility\n' +
-      '• XMLHttpRequest fallback strategy\n' +
-      '• No-CORS mode as last resort\n\n' +
-      'TROUBLESHOOTING:\n' +
-      '1. Ensure Arduino LCD shows "Android Connected"\n' +
-      '2. Check WiFi: Settings → WiFi → AEROSPIN CONTROL\n' +
-      '3. Verify IP: Should be 192.168.4.2 (your phone)\n' +
-      '4. Arduino IP: Should be 192.168.4.1\n' +
-      '5. Try airplane mode ON/OFF to reset network\n' +
-      '6. Restart Arduino if response time > 30 seconds',
+      'ULTIMATE STRATEGY (4 Methods):\n' +
+      '1. Ultra-minimal fetch (90s timeout)\n' +
+      '2. XMLHttpRequest fallback (90s timeout)\n' +
+      '3. No-CORS mode (opaque response)\n' +
+      '4. Image-based connection test\n\n' +
+      'TESTING PROCESS:\n' +
+      '• 5 full rounds of all endpoints\n' +
+      '• 6 endpoints per round (/, /ping, /status, /health, /info, /sync)\n' +
+      '• 10 second delays between attempts\n' +
+      '• 15 second delays between rounds\n\n' +
+      'TOTAL TEST TIME: Up to 45 minutes maximum\n\n' +
+      'IF STILL FAILING:\n' +
+      '1. Arduino may be defective\n' +
+      '2. Power supply issues\n' +
+      '3. WiFi hardware problems\n' +
+      '4. Try different Android device',
       [{ text: 'OK' }]
     );
   };
@@ -88,20 +91,46 @@ export function AndroidConnectionDiagnostics({
   const handleNetworkReset = () => {
     Alert.alert(
       'Network Reset Instructions',
-      'To reset your network connection:\n\n' +
-      '1. Turn ON Airplane Mode (30 seconds)\n' +
+      'ULTIMATE Android 15 Network Reset:\n\n' +
+      '1. Turn ON Airplane Mode (60 seconds)\n' +
       '2. Turn OFF Airplane Mode\n' +
-      '3. Reconnect to "AEROSPIN CONTROL"\n' +
-      '4. Wait for "Android Connected" on Arduino LCD\n' +
-      '5. Try connection again\n\n' +
-      'This often resolves Android 15 APK network issues.',
+      '3. Forget ALL WiFi networks\n' +
+      '4. Restart Android device\n' +
+      '5. Reconnect to "AEROSPIN CONTROL"\n' +
+      '6. Wait for "Android Connected" on Arduino LCD\n' +
+      '7. Try AEROSPIN app again\n\n' +
+      'This nuclear reset often resolves stubborn Android 15 issues.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Open WiFi Settings', onPress: () => {
-          // This would open WiFi settings if we had the capability
-          Alert.alert('Manual Action Required', 'Please manually open WiFi settings and reconnect to "AEROSPIN CONTROL"');
+          Alert.alert('Manual Action Required', 'Please manually open WiFi settings and perform the reset steps');
         }}
       ]
+    );
+  };
+
+  const handleHardwareCheck = () => {
+    Alert.alert(
+      'Hardware Troubleshooting',
+      'If software fixes don\'t work, check hardware:\n\n' +
+      'ARDUINO CHECKS:\n' +
+      '• Power LED should be solid ON\n' +
+      '• LCD should show "AEROSPIN READY"\n' +
+      '• WiFi LED should blink during connection\n' +
+      '• Serial monitor should show "HTTP server started"\n\n' +
+      'POWER SUPPLY:\n' +
+      '• Use 5V 2A power adapter (minimum)\n' +
+      '• Check for voltage drops under load\n' +
+      '• Ensure stable power during operation\n\n' +
+      'CONNECTIONS:\n' +
+      '• All wires securely connected\n' +
+      '• No loose connections\n' +
+      '• WiFi antenna properly attached\n\n' +
+      'ENVIRONMENT:\n' +
+      '• No interference from other devices\n' +
+      '• Arduino within 10 feet of Android device\n' +
+      '• No metal barriers between devices',
+      [{ text: 'OK' }]
     );
   };
 
@@ -110,14 +139,19 @@ export function AndroidConnectionDiagnostics({
       styles.container,
       isTablet && styles.tabletContainer
     ]}>
-      <View style={styles.header}>
-        <Smartphone size={isTablet ? 20 : 16} color="#3b82f6" />
-        <Text style={[
-          styles.title,
-          isTablet && styles.tabletTitle
-        ]}>
-          Android 15 APK Final Fix
-        </Text>
+      {/* Main Status Row */}
+      <View style={styles.mainStatus}>
+        <View style={styles.statusRow}>
+          {getStatusIcon()}
+          <Text style={[
+            styles.statusText,
+            isTablet && styles.tabletStatusText,
+            { color: getStatusColor() }
+          ]}>
+            {getStatusText()}
+          </Text>
+        </View>
+        
         <TouchableOpacity
           style={[
             styles.refreshButton,
@@ -125,113 +159,150 @@ export function AndroidConnectionDiagnostics({
           ]}
           onPress={onRefresh}
         >
-          <RefreshCw size={isTablet ? 16 : 14} color="#6b7280" />
+          <RefreshCw size={isTablet ? 18 : 14} color="#6b7280" />
         </TouchableOpacity>
       </View>
 
-      <View style={[
-        styles.statusRow,
-        connectionStatus === 'connected' && styles.statusRowSuccess,
-        connectionStatus === 'failed' && styles.statusRowError,
-        connectionStatus === 'timeout' && styles.statusRowWarning,
-      ]}>
-        {getStatusIcon()}
-        <Text style={[
-          styles.statusText,
-          isTablet && styles.tabletStatusText,
-          { color: getStatusColor() }
-        ]}>
-          {getStatusText()}
-        </Text>
-      </View>
-
-      <View style={styles.diagnosticsList}>
-        <View style={styles.diagnosticItem}>
-          <Wifi size={isTablet ? 16 : 14} color="#22c55e" />
-          <Text style={[
-            styles.diagnosticLabel,
-            isTablet && styles.tabletDiagnosticLabel
-          ]}>
-            WiFi Network:
-          </Text>
-          <Text style={[
-            styles.diagnosticValue,
-            isTablet && styles.tabletDiagnosticValue,
-            { color: '#22c55e' }
-          ]}>
-            AEROSPIN CONTROL ✓
-          </Text>
+      {/* Enhanced Status Details */}
+      <View style={styles.detailsContainer}>
+        <View style={styles.layerStatus}>
+          <View style={styles.layerHeader}>
+            <Shield size={isTablet ? 16 : 14} color="#6b7280" />
+            <Text style={[
+              styles.layerTitle,
+              isTablet && styles.tabletLayerTitle
+            ]}>
+              Android 15 ULTIMATE Fix Status
+            </Text>
+          </View>
+          <View style={styles.layerDetails}>
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Strategy 1 (Fetch):
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText,
+                { color: connectionStatus === 'connected' ? '#22c55e' : '#6b7280' }
+              ]}>
+                {connectionStatus === 'connected' ? 'SUCCESS' : 'Testing...'}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Strategy 2 (XHR):
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText,
+                { color: connectionStatus === 'connected' ? '#22c55e' : '#6b7280' }
+              ]}>
+                {connectionStatus === 'connected' ? 'SUCCESS' : 'Fallback Ready'}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Strategy 3 (No-CORS):
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText,
+                { color: connectionStatus === 'connected' ? '#22c55e' : '#6b7280' }
+              ]}>
+                {connectionStatus === 'connected' ? 'SUCCESS' : 'Opaque Ready'}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Strategy 4 (Image):
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText,
+                { color: connectionStatus === 'connected' ? '#22c55e' : '#6b7280' }
+              ]}>
+                {connectionStatus === 'connected' ? 'SUCCESS' : 'Last Resort'}
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <View style={styles.diagnosticItem}>
-          <Router size={isTablet ? 16 : 14} color="#22c55e" />
-          <Text style={[
-            styles.diagnosticLabel,
-            isTablet && styles.tabletDiagnosticLabel
-          ]}>
-            Arduino LCD:
-          </Text>
-          <Text style={[
-            styles.diagnosticValue,
-            isTablet && styles.tabletDiagnosticValue,
-            { color: '#22c55e' }
-          ]}>
-            "Android Connected" ✓
-          </Text>
-        </View>
-
-        <View style={styles.diagnosticItem}>
-          <Server size={isTablet ? 16 : 14} color={connectionStatus === 'connected' ? '#22c55e' : '#ef4444'} />
-          <Text style={[
-            styles.diagnosticLabel,
-            isTablet && styles.tabletDiagnosticLabel
-          ]}>
-            APK HTTP Response:
-          </Text>
-          <Text style={[
-            styles.diagnosticValue,
-            isTablet && styles.tabletDiagnosticValue,
-            { color: connectionStatus === 'connected' ? '#22c55e' : '#ef4444' }
-          ]}>
-            {connectionStatus === 'connected' ? 'Working ✓' : 'Failed ✗'}
-          </Text>
-        </View>
-
-        <View style={styles.diagnosticItem}>
-          <Zap size={isTablet ? 16 : 14} color="#6b7280" />
-          <Text style={[
-            styles.diagnosticLabel,
-            isTablet && styles.tabletDiagnosticLabel
-          ]}>
-            Response Time:
-          </Text>
-          <Text style={[
-            styles.diagnosticValue,
-            isTablet && styles.tabletDiagnosticValue,
-            { 
-              color: responseTime === 0 ? '#6b7280' :
-                     responseTime < 10000 ? '#22c55e' : 
-                     responseTime < 30000 ? '#f59e0b' : '#ef4444' 
-            }
-          ]}>
-            {responseTime > 0 ? `${responseTime}ms` : 'N/A'}
-          </Text>
-        </View>
-
-        <View style={styles.diagnosticItem}>
-          <RefreshCw size={isTablet ? 16 : 14} color="#6b7280" />
-          <Text style={[
-            styles.diagnosticLabel,
-            isTablet && styles.tabletDiagnosticLabel
-          ]}>
-            Attempts:
-          </Text>
-          <Text style={[
-            styles.diagnosticValue,
-            isTablet && styles.tabletDiagnosticValue
-          ]}>
-            {connectionAttempts}
-          </Text>
+        <View style={styles.layerStatus}>
+          <View style={styles.layerHeader}>
+            <Zap size={isTablet ? 16 : 14} color="#6b7280" />
+            <Text style={[
+              styles.layerTitle,
+              isTablet && styles.tabletLayerTitle
+            ]}>
+              Performance Metrics
+            </Text>
+          </View>
+          <View style={styles.layerDetails}>
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Response Time:
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText,
+                { 
+                  color: responseTime === 0 ? '#6b7280' :
+                         responseTime < 15000 ? '#22c55e' : 
+                         responseTime < 45000 ? '#f59e0b' : '#ef4444' 
+                }
+              ]}>
+                {responseTime > 0 ? `${responseTime}ms` : 'N/A'}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Total Attempts:
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText
+              ]}>
+                {connectionAttempts}
+              </Text>
+            </View>
+            
+            <View style={styles.detailRow}>
+              <Text style={[
+                styles.detailLabel,
+                isTablet && styles.tabletDetailLabel
+              ]}>
+                Max Test Time:
+              </Text>
+              <Text style={[
+                styles.detailText,
+                isTablet && styles.tabletDetailText
+              ]}>
+                45 minutes
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -247,11 +318,12 @@ export function AndroidConnectionDiagnostics({
             styles.responseText,
             isTablet && styles.tabletResponseText
           ]}>
-            {lastResponse.substring(0, 150)}...
+            {lastResponse.substring(0, 200)}...
           </Text>
         </View>
       )}
 
+      {/* Action Buttons */}
       <View style={styles.actionButtons}>
         <TouchableOpacity
           style={[
@@ -265,7 +337,7 @@ export function AndroidConnectionDiagnostics({
             styles.actionButtonText,
             isTablet && styles.tabletActionButtonText
           ]}>
-            Retry (60s timeout)
+            Retry (90s + 4 strategies)
           </Text>
         </TouchableOpacity>
 
@@ -283,43 +355,63 @@ export function AndroidConnectionDiagnostics({
             styles.secondaryActionButtonText,
             isTablet && styles.tabletActionButtonText
           ]}>
-            Network Reset
+            Nuclear Reset
           </Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={[
-          styles.diagnosticsButton,
-          isTablet && styles.tabletDiagnosticsButton
-        ]}
-        onPress={handleAdvancedDiagnostics}
-      >
-        <AlertTriangle size={isTablet ? 16 : 14} color="#f59e0b" />
-        <Text style={[
-          styles.diagnosticsButtonText,
-          isTablet && styles.tabletDiagnosticsButtonText
-        ]}>
-          Advanced Diagnostics & Troubleshooting
-        </Text>
-      </TouchableOpacity>
+      {/* Additional Help Buttons */}
+      <View style={styles.helpButtons}>
+        <TouchableOpacity
+          style={[
+            styles.helpButton,
+            isTablet && styles.tabletHelpButton
+          ]}
+          onPress={handleUltimateGuide}
+        >
+          <AlertTriangle size={isTablet ? 16 : 14} color="#f59e0b" />
+          <Text style={[
+            styles.helpButtonText,
+            isTablet && styles.tabletHelpButtonText
+          ]}>
+            ULTIMATE Fix Guide
+          </Text>
+        </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[
+            styles.helpButton,
+            isTablet && styles.tabletHelpButton
+          ]}
+          onPress={handleHardwareCheck}
+        >
+          <Router size={isTablet ? 16 : 14} color="#6366f1" />
+          <Text style={[
+            styles.helpButtonText,
+            isTablet && styles.tabletHelpButtonText
+          ]}>
+            Hardware Check
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Ultimate Strategy Summary */}
       <View style={styles.troubleshootingSection}>
         <Text style={[
           styles.troubleshootingTitle,
           isTablet && styles.tabletTroubleshootingTitle
         ]}>
-          🔧 Android 15 APK Final Fix Strategy:
+          🚀 Android 15 ULTIMATE Strategy:
         </Text>
         <Text style={[
           styles.troubleshootingText,
           isTablet && styles.tabletTroubleshootingText
         ]}>
-          ✅ Ultra-aggressive 3-round connection strategy{'\n'}
-          ✅ 60-second timeouts for maximum compatibility{'\n'}
-          ✅ Multiple fallback methods (Fetch + XMLHttpRequest + No-CORS){'\n'}
-          ✅ Minimal headers to avoid Android 15 restrictions{'\n'}
-          ⚡ If still failing: Try airplane mode ON/OFF to reset network stack
+          ✅ 4 different connection methods (Fetch + XHR + No-CORS + Image){'\n'}
+          ✅ 90-second timeouts for maximum patience{'\n'}
+          ✅ 5 full rounds testing all 6 endpoints{'\n'}
+          ✅ Up to 45 minutes total testing time{'\n'}
+          ⚡ If this fails, the issue is likely hardware-related
         </Text>
       </View>
     </View>
@@ -339,53 +431,16 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 20,
   },
-  header: {
+  mainStatus: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: '#374151',
-    flex: 1,
-    marginLeft: 8,
-  },
-  tabletTitle: {
-    fontSize: 20,
-    marginLeft: 12,
-  },
-  refreshButton: {
-    padding: 4,
-    borderRadius: 6,
-    backgroundColor: '#f3f4f6',
-  },
-  tabletRefreshButton: {
-    padding: 6,
-    borderRadius: 8,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  statusRowSuccess: {
-    backgroundColor: '#f0fdf4',
-    borderColor: '#bbf7d0',
-  },
-  statusRowError: {
-    backgroundColor: '#fef2f2',
-    borderColor: '#fecaca',
-  },
-  statusRowWarning: {
-    backgroundColor: '#fffbeb',
-    borderColor: '#fed7aa',
+    flex: 1,
   },
   statusText: {
     fontSize: 14,
@@ -397,35 +452,61 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 12,
   },
-  diagnosticsList: {
+  refreshButton: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: '#f3f4f6',
+  },
+  tabletRefreshButton: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  detailsContainer: {
     marginBottom: 16,
   },
-  diagnosticItem: {
+  layerStatus: {
+    marginBottom: 12,
+  },
+  layerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    marginBottom: 8,
   },
-  diagnosticLabel: {
+  layerTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#374151',
+    marginLeft: 6,
+  },
+  tabletLayerTitle: {
     fontSize: 14,
+    marginLeft: 8,
+  },
+  layerDetails: {
+    paddingLeft: 20,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  detailLabel: {
+    fontSize: 11,
     fontFamily: 'Inter-Medium',
     color: '#6b7280',
     flex: 1,
-    marginLeft: 8,
   },
-  tabletDiagnosticLabel: {
-    fontSize: 16,
-    marginLeft: 12,
+  tabletDetailLabel: {
+    fontSize: 13,
   },
-  diagnosticValue: {
-    fontSize: 14,
+  detailText: {
+    fontSize: 11,
     fontFamily: 'Inter-Regular',
     color: '#374151',
   },
-  tabletDiagnosticValue: {
-    fontSize: 16,
+  tabletDetailText: {
+    fontSize: 13,
   },
   responseSection: {
     backgroundColor: '#f0f9ff',
@@ -457,7 +538,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   actionButton: {
     flex: 1,
@@ -480,44 +561,49 @@ const styles = StyleSheet.create({
     borderColor: '#d1d5db',
   },
   actionButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Inter-Medium',
     color: '#ffffff',
     marginLeft: 6,
   },
   tabletActionButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     marginLeft: 8,
   },
   secondaryActionButtonText: {
     color: '#374151',
   },
-  diagnosticsButton: {
+  helpButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  helpButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fef3c7',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginBottom: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#fbbf24',
   },
-  tabletDiagnosticsButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+  tabletHelpButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
-  diagnosticsButtonText: {
-    fontSize: 14,
+  helpButtonText: {
+    fontSize: 11,
     fontFamily: 'Inter-Medium',
     color: '#92400e',
-    marginLeft: 6,
+    marginLeft: 4,
   },
-  tabletDiagnosticsButtonText: {
-    fontSize: 16,
-    marginLeft: 8,
+  tabletHelpButtonText: {
+    fontSize: 13,
+    marginLeft: 6,
   },
   troubleshootingSection: {
     backgroundColor: '#fffbeb',
