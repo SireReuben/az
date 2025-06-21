@@ -10,15 +10,13 @@ import { useEnhancedNetworkDetection } from '@/hooks/useEnhancedNetworkDetection
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import { useNetworkPermissions } from '@/hooks/useNetworkPermissions';
 
-const { width, height } = Dimensions.get('window');
-
 export default function WelcomeScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
   const [logoAnim] = useState(new Animated.Value(0));
   const { hasLocationPermission, hasNetworkAccess } = useNetworkPermissions();
   const [showManualConnect, setShowManualConnect] = useState(false);
-  const { isTablet, isLandscape, screenType } = useDeviceOrientation();
+  const { isTablet, isLandscape, screenType, width, height, isWideScreen } = useDeviceOrientation();
 
   // Use enhanced network detection
   const {
@@ -88,9 +86,15 @@ export default function WelcomeScreen() {
 
   const getLayoutStyle = () => {
     if (isTablet && isLandscape && screenType !== 'phone') {
-      return styles.tabletLandscapeLayout;
+      return {
+        ...styles.tabletLandscapeLayout,
+        minHeight: height, // Ensure full height usage
+        paddingHorizontal: isWideScreen ? 60 : 40,
+      };
     }
-    return null;
+    return {
+      minHeight: height, // Ensure full height usage on all devices
+    };
   };
 
   const getConnectionMessage = () => {
@@ -151,9 +155,9 @@ export default function WelcomeScreen() {
     <NetworkPermissionGuard>
       <LinearGradient
         colors={['#1e3a8a', '#3b82f6', '#60a5fa']}
-        style={styles.container}
+        style={[styles.container, { minHeight: height }]}
       >
-        <ResponsiveContainer style={styles.responsiveContainer}>
+        <ResponsiveContainer style={styles.responsiveContainer} fillScreen={true}>
           <Animated.View
             style={[
               styles.content,
@@ -187,7 +191,8 @@ export default function WelcomeScreen() {
                   source={require('@/assets/images/Aerospin-1-300x200.png')}
                   style={[
                     styles.logo,
-                    isTablet && styles.tabletLogo
+                    isTablet && styles.tabletLogo,
+                    isLandscape && isTablet && styles.landscapeLogo
                   ]}
                   resizeMode="contain"
                 />
@@ -195,19 +200,22 @@ export default function WelcomeScreen() {
               
               <Text style={[
                 styles.title,
-                isTablet && styles.tabletTitle
+                isTablet && styles.tabletTitle,
+                isLandscape && isTablet && styles.landscapeTitle
               ]}>
                 Welcome to
               </Text>
               <Text style={[
                 styles.brand,
-                isTablet && styles.tabletBrand
+                isTablet && styles.tabletBrand,
+                isLandscape && isTablet && styles.landscapeBrand
               ]}>
                 AEROSPIN
               </Text>
               <Text style={[
                 styles.subtitle,
-                isTablet && styles.tabletSubtitle
+                isTablet && styles.tabletSubtitle,
+                isLandscape && isTablet && styles.landscapeSubtitle
               ]}>
                 CONTROL SYSTEM
               </Text>
@@ -329,21 +337,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
+    paddingVertical: 40,
+    paddingHorizontal: 24,
     width: '100%',
   },
   tabletLandscapeLayout: {
     flexDirection: 'row',
-    paddingVertical: 40,
-    paddingHorizontal: 48,
+    paddingVertical: 30,
+    paddingHorizontal: 40,
+    alignItems: 'stretch',
   },
   header: {
     alignItems: 'center',
+    flex: 1,
   },
   tabletLandscapeHeader: {
     flex: 1,
     justifyContent: 'center',
+    paddingRight: 40,
   },
   logoContainer: {
     marginBottom: 20,
@@ -369,6 +380,10 @@ const styles = StyleSheet.create({
     width: 160,
     height: 107,
   },
+  landscapeLogo: {
+    width: 140,
+    height: 93,
+  },
   title: {
     fontSize: 20,
     fontFamily: 'Inter-Regular',
@@ -379,6 +394,10 @@ const styles = StyleSheet.create({
   tabletTitle: {
     fontSize: 28,
     marginBottom: 12,
+  },
+  landscapeTitle: {
+    fontSize: 24,
+    marginBottom: 10,
   },
   brand: {
     fontSize: 42,
@@ -393,6 +412,11 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
     marginBottom: 8,
   },
+  landscapeBrand: {
+    fontSize: 48,
+    letterSpacing: 3,
+    marginBottom: 6,
+  },
   subtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
@@ -404,14 +428,19 @@ const styles = StyleSheet.create({
     fontSize: 22,
     letterSpacing: 1.5,
   },
+  landscapeSubtitle: {
+    fontSize: 18,
+    letterSpacing: 1.2,
+  },
   middle: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
+    flex: 2,
+    width: '100%',
   },
   tabletLandscapeMiddle: {
-    flex: 1,
-    marginHorizontal: 48,
+    flex: 1.5,
+    marginHorizontal: 40,
   },
   statusContainer: {
     alignItems: 'center',
@@ -463,6 +492,7 @@ const styles = StyleSheet.create({
   manualConnectContainer: {
     alignItems: 'center',
     marginTop: 24,
+    width: '100%',
   },
   manualConnectText: {
     fontSize: 16,
@@ -511,6 +541,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     alignItems: 'center',
+    flex: 0.5,
   },
   tabletLandscapeFooter: {
     flex: 0.5,

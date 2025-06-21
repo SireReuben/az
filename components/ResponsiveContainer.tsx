@@ -7,15 +7,17 @@ interface ResponsiveContainerProps {
   style?: ViewStyle;
   maxWidth?: number;
   padding?: boolean;
+  fillScreen?: boolean;
 }
 
 export function ResponsiveContainer({ 
   children, 
   style, 
-  maxWidth = 1200,
-  padding = true 
+  maxWidth = 1400,
+  padding = true,
+  fillScreen = true
 }: ResponsiveContainerProps) {
-  const { width, isTablet, isLargeTablet, screenType } = useDeviceOrientation();
+  const { width, height, isTablet, isLargeTablet, screenType, isLandscape, isWideScreen } = useDeviceOrientation();
 
   const getContainerStyle = () => {
     const baseStyle: ViewStyle = {
@@ -23,9 +25,18 @@ export function ResponsiveContainer({
       alignSelf: 'center',
     };
 
+    // Fill screen height for landscape tablets
+    if (fillScreen && isTablet && isLandscape) {
+      baseStyle.minHeight = height;
+    }
+
     // Apply max width for larger screens
-    if (screenType === 'desktop' || isLargeTablet) {
+    if (screenType === 'desktop') {
       baseStyle.maxWidth = maxWidth;
+    } else if (isLargeTablet && isLandscape) {
+      baseStyle.maxWidth = Math.min(width * 0.98, maxWidth);
+    } else if (isTablet && isLandscape) {
+      baseStyle.maxWidth = Math.min(width * 0.96, 1200);
     } else if (isTablet) {
       baseStyle.maxWidth = Math.min(width * 0.95, 900);
     }
@@ -33,13 +44,17 @@ export function ResponsiveContainer({
     // Apply responsive padding
     if (padding) {
       if (screenType === 'desktop') {
-        baseStyle.paddingHorizontal = 32;
+        baseStyle.paddingHorizontal = 40;
+        baseStyle.paddingVertical = 32;
       } else if (isLargeTablet) {
-        baseStyle.paddingHorizontal = 24;
+        baseStyle.paddingHorizontal = isLandscape ? 32 : 28;
+        baseStyle.paddingVertical = isLandscape ? 24 : 28;
       } else if (isTablet) {
-        baseStyle.paddingHorizontal = 20;
+        baseStyle.paddingHorizontal = isLandscape ? 28 : 24;
+        baseStyle.paddingVertical = isLandscape ? 20 : 24;
       } else {
         baseStyle.paddingHorizontal = 16;
+        baseStyle.paddingVertical = 16;
       }
     }
 

@@ -8,6 +8,8 @@ interface DeviceOrientation {
   isTablet: boolean;
   isLargeTablet: boolean;
   screenType: 'phone' | 'tablet' | 'large-tablet' | 'desktop';
+  aspectRatio: number;
+  isWideScreen: boolean;
 }
 
 export function useDeviceOrientation(): DeviceOrientation {
@@ -28,13 +30,15 @@ export function useDeviceOrientation(): DeviceOrientation {
   const isLandscape = width > height;
   const minDimension = Math.min(width, height);
   const maxDimension = Math.max(width, height);
+  const aspectRatio = maxDimension / minDimension;
   
-  // Device classification based on screen size
-  const isTablet = minDimension >= 768; // iPad mini and larger
-  const isLargeTablet = minDimension >= 1024; // iPad Pro and larger
+  // Enhanced device classification
+  const isTablet = minDimension >= 600; // More inclusive tablet detection
+  const isLargeTablet = minDimension >= 900; // Large tablets like iPad Pro
+  const isWideScreen = aspectRatio > 1.6; // Wide aspect ratios
   
   let screenType: 'phone' | 'tablet' | 'large-tablet' | 'desktop';
-  if (maxDimension >= 1440) {
+  if (maxDimension >= 1920 || (isLandscape && maxDimension >= 1440)) {
     screenType = 'desktop';
   } else if (isLargeTablet) {
     screenType = 'large-tablet';
@@ -51,5 +55,7 @@ export function useDeviceOrientation(): DeviceOrientation {
     isTablet,
     isLargeTablet,
     screenType,
+    aspectRatio,
+    isWideScreen,
   };
 }

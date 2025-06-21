@@ -24,7 +24,7 @@ export default function DashboardScreen() {
   } = useDeviceState();
   
   const { addOperationAlert, addSafetyAlert } = useAlerts();
-  const { isTablet, isLandscape, screenType } = useDeviceOrientation();
+  const { isTablet, isLandscape, screenType, height } = useDeviceOrientation();
 
   // Enhanced device control handlers with alert integration
   const handleUpdateDeviceState = async (updates: Partial<typeof deviceState>) => {
@@ -71,7 +71,7 @@ export default function DashboardScreen() {
     return (
       <LinearGradient
         colors={['#1e3a8a', '#3b82f6']}
-        style={styles.container}
+        style={[styles.container, { minHeight: height }]}
       >
         <SafeAreaView style={styles.safeArea}>
           <ScrollView 
@@ -79,10 +79,11 @@ export default function DashboardScreen() {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.scrollContent,
-              isTablet && styles.tabletScrollContent
+              isTablet && styles.tabletScrollContent,
+              { minHeight: height - 100 } // Account for safe area
             ]}
           >
-            <ResponsiveContainer>
+            <ResponsiveContainer fillScreen={true}>
               <StatusHeader />
               <EnhancedConnectionStatus 
                 isConnected={isConnected} 
@@ -108,7 +109,7 @@ export default function DashboardScreen() {
   return (
     <LinearGradient
       colors={['#1e3a8a', '#3b82f6']}
-      style={styles.container}
+      style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
         <ScrollView 
@@ -116,10 +117,11 @@ export default function DashboardScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            isTablet && styles.tabletScrollContent
+            isTablet && styles.tabletScrollContent,
+            { minHeight: height - 100 } // Account for safe area and tab bar
           ]}
         >
-          <ResponsiveContainer>
+          <ResponsiveContainer fillScreen={true}>
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
@@ -270,13 +272,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 100, // Extra padding for tab bar
   },
   tabletScrollContent: {
     padding: 24,
+    paddingBottom: 120, // Extra padding for tab bar on tablets
   },
   tabletLandscapeLayout: {
     flexDirection: 'row',
     gap: 24,
+    minHeight: '100%',
   },
   leftColumn: {
     flex: 1,

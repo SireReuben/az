@@ -8,7 +8,24 @@ import {
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 export default function TabLayout() {
-  const { isTablet, isLandscape } = useDeviceOrientation();
+  const { isTablet, isLandscape, screenType, isWideScreen } = useDeviceOrientation();
+
+  // Enhanced tab bar styling for landscape tablets
+  const getTabBarHeight = () => {
+    if (screenType === 'desktop') return 80;
+    if (isTablet && isLandscape) return isWideScreen ? 70 : 75;
+    if (isTablet) return 85;
+    return 75;
+  };
+
+  const getTabBarPadding = () => {
+    if (screenType === 'desktop') return { top: 16, bottom: 20, horizontal: 24 };
+    if (isTablet && isLandscape) return { top: 12, bottom: 16, horizontal: 20 };
+    if (isTablet) return { top: 16, bottom: 24, horizontal: 16 };
+    return { top: 12, bottom: 20, horizontal: 8 };
+  };
+
+  const padding = getTabBarPadding();
 
   return (
     <Tabs
@@ -18,15 +35,21 @@ export default function TabLayout() {
           backgroundColor: '#1e40af',
           borderTopColor: '#3b82f6',
           borderTopWidth: 1,
-          height: isTablet ? (isLandscape ? 70 : 90) : 80,
-          paddingBottom: isTablet ? (isLandscape ? 12 : 24) : 20,
-          paddingTop: isTablet ? (isLandscape ? 8 : 16) : 12,
-          paddingHorizontal: isTablet ? 16 : 8,
+          height: getTabBarHeight(),
+          paddingBottom: padding.bottom,
+          paddingTop: padding.top,
+          paddingHorizontal: padding.horizontal,
+          // Ensure tab bar fills width on landscape tablets
+          width: '100%',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
         },
         tabBarActiveTintColor: '#ffffff',
         tabBarInactiveTintColor: '#93c5fd',
         tabBarLabelStyle: {
-          fontSize: isTablet ? 14 : 12,
+          fontSize: isTablet ? (isLandscape ? 13 : 14) : 12,
           fontFamily: 'Inter-Medium',
           marginTop: 4,
           marginBottom: 4,
@@ -34,6 +57,8 @@ export default function TabLayout() {
         tabBarIconStyle: {
           marginTop: 4,
         },
+        // Ensure content doesn't get hidden behind tab bar
+        tabBarHideOnKeyboard: true,
       }}
     >
       <Tabs.Screen
@@ -41,7 +66,7 @@ export default function TabLayout() {
         options={{
           title: 'Sessions',
           tabBarIcon: ({ size, color }) => (
-            <Play size={isTablet ? 26 : 22} color={color} />
+            <Play size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
           ),
         }}
       />
@@ -50,7 +75,7 @@ export default function TabLayout() {
         options={{
           title: 'Dashboard',
           tabBarIcon: ({ size, color }) => (
-            <Gauge size={isTablet ? 26 : 22} color={color} />
+            <Gauge size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
           ),
         }}
       />
@@ -59,7 +84,7 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           tabBarIcon: ({ size, color }) => (
-            <Settings size={isTablet ? 26 : 22} color={color} />
+            <Settings size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
           ),
         }}
       />
@@ -68,7 +93,7 @@ export default function TabLayout() {
         options={{
           title: 'Alerts',
           tabBarIcon: ({ size, color }) => (
-            <Bell size={isTablet ? 26 : 22} color={color} />
+            <Bell size={isTablet ? (isLandscape ? 24 : 26) : 22} color={color} />
           ),
         }}
       />
