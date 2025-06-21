@@ -89,8 +89,9 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
           // Not on Arduino network or Arduino not reachable
         }
       } else {
-        // For mobile platforms, use NetInfo if available
+        // For mobile platforms, try to use NetInfo if available
         try {
+          // Check if NetInfo is available before requiring it
           const NetInfo = require('@react-native-community/netinfo');
           const netInfoState = await NetInfo.fetch();
           
@@ -103,6 +104,8 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
           }
         } catch (error) {
           console.log('NetInfo not available, using fallback detection');
+          // Fallback to basic network detection
+          networkInfo.isInternetReachable = true; // Assume available
         }
       }
 
@@ -171,8 +174,9 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
           return false;
         }
       } else {
-        // For mobile platforms, use TCP socket if available
+        // For mobile platforms, try to use TCP socket if available
         try {
+          // Check if TcpSocket is available before requiring it
           const TcpSocket = require('react-native-tcp-socket');
           
           return new Promise((resolve) => {
@@ -239,8 +243,40 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
           });
         } catch (error) {
           console.log('TCP Socket not available, using HTTP fallback');
-          // Fallback to HTTP test
-          return testTcpConnection();
+          // Fallback to HTTP test for mobile when TCP socket is not available
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), finalConfig.connectionTimeout);
+          
+          try {
+            const response = await fetch(`http://${finalConfig.arduinoIP}/ping`, {
+              method: 'HEAD',
+              signal: controller.signal,
+            });
+            
+            clearTimeout(timeoutId);
+            
+            const isReachable = response.ok || response.status < 500;
+            
+            if (isComponentMounted.current) {
+              setState(prev => ({
+                ...prev,
+                isArduinoReachable: isReachable,
+              }));
+            }
+            
+            return isReachable;
+          } catch (error) {
+            clearTimeout(timeoutId);
+            
+            if (isComponentMounted.current) {
+              setState(prev => ({
+                ...prev,
+                isArduinoReachable: false,
+              }));
+            }
+            
+            return false;
+          }
         }
       }
     } catch (error) {
