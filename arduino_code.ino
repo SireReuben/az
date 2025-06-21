@@ -55,12 +55,62 @@ void setCORSHeaders() {
   server.sendHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   server.sendHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   server.sendHeader("Access-Control-Max-Age", "86400");
+  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  server.sendHeader("Pragma", "no-cache");
+  server.sendHeader("Expires", "0");
 }
 
 // Handle preflight OPTIONS requests
 void handleOptions() {
   setCORSHeaders();
-  server.send(200, "text/plain", "");
+  server.send(200, "text/plain", "OK");
+}
+
+// Enhanced ping handler for better connectivity detection
+void handlePing() {
+  setCORSHeaders();
+  
+  // Add device info to ping response for better detection
+  String response = "pong";
+  response += "\nDevice: AEROSPIN";
+  response += "\nStatus: Ready";
+  response += "\nTime: " + String(millis());
+  response += "\nSession: " + String(sessionActive ? "Active" : "Inactive");
+  
+  server.send(200, "text/plain", response);
+  
+  // Log ping requests if session is active
+  if (sessionActive) {
+    sessionLog += String(millis() - sessionStartTime) + "ms: Ping request received\n";
+  }
+}
+
+// Enhanced status handler
+void handleStatus() {
+  setCORSHeaders();
+  
+  String status = "Direction: ";
+  switch(currentDirection) {
+    case DIR_FORWARD: status += "Forward"; break;
+    case DIR_REVERSE: status += "Reverse"; break;
+    default: status += "None"; break;
+  }
+  
+  status += "\nBrake: ";
+  switch(brakeStatus) {
+    case BRAKE_PULL: status += "Pull"; break;
+    case BRAKE_PUSH: status += "Push"; break;
+    default: status += "None"; break;
+  }
+  
+  status += "\nSpeed: " + String(speed);
+  status += "\nSession: " + String(sessionActive ? "Active" : "Inactive");
+  status += "\nUptime: " + String(millis() / 1000) + "s";
+  status += "\nFreeHeap: " + String(ESP.getFreeHeap());
+  status += "\nConnectedClients: " + String(WiFi.softAPgetStationNum());
+  
+  Serial.println("Sending status: " + status);
+  server.send(200, "text/plain", status);
 }
 
 // HTML page stored in PROGMEM (keeping original for web interface)
@@ -695,7 +745,7 @@ void handleJSPDF() {
 void handleDirection() {
   setCORSHeaders();
   if (!server.hasArg("state")) {
-    server.send(400, "text/plain", "Missing state");
+    server.send(400, "text/plain", "Missing state parameter");
     return;
   }
   String state = server.arg("state");
@@ -715,20 +765,22 @@ void handleDirection() {
   if (sessionActive) {
     sessionLog += String(millis() - sessionStartTime) + "ms: Direction set to " + state + "\n";
   }
-  server.send(200, "text/plain", "OK");
+  server.send(200, "text/plain", "Direction set to " + state);
 }
 
 void handleBrake() {
   setCORSHeaders();
   if (!server.hasArg("action") || !server.hasArg("state")) {
-    server.send(400, "text/plain", "Missing action/state");
+    server.send(400, "text/plain", "Missing action or state parameter");
     return;
   }
   String action = server.arg("action");
   String state = server.arg("state");
+  
   if (action == "pull" && state == "on") brakeStatus = BRAKE_PULL;
   else if (action == "push" && state == "on") brakeStatus = BRAKE_PUSH;
   else brakeStatus = BRAKE_NONE;
+  
   saveBrakeStatus(); // Save to EEPROM
   Serial.printf("Brake: %s %s (brakeStatus: %d)\n", action.c_str(), state.c_str(), brakeStatus);
   sendLoRaData();
@@ -736,13 +788,13 @@ void handleBrake() {
   if (sessionActive) {
     sessionLog += String(millis() - sessionStartTime) + "ms: Brake " + action + " " + state + "\n";
   }
-  server.send(200, "text/plain", "OK");
+  server.send(200, "text/plain", "Brake " + action + " " + state + " applied");
 }
 
 void handleSpeed() {
   setCORSHeaders();
   if (!server.hasArg("value")) {
-    server.send(400, "text/plain", "Missing value");
+    server.send(400, "text/plain", "Missing value parameter");
     return;
   }
   speed = constrain(server.arg("value").toInt(), 0, 100);
@@ -752,33 +804,7 @@ void handleSpeed() {
   if (sessionActive) {
     sessionLog += String(millis() - sessionStartTime) + "ms: Speed set to " + String(speed) + "\n";
   }
-  server.send(200, "text/plain", "OK");
-}
-
-void handlePing() {
-  setCORSHeaders();
-  server.send(200, "text/plain", "pong");
-}
-
-void handleStatus() {
-  setCORSHeaders();
-  String status = "Direction: ";
-  switch(currentDirection) {
-    case DIR_FORWARD: status += "Forward"; break;
-    case DIR_REVERSE: status += "Reverse"; break;
-    default: status += "None"; break;
-  }
-  status += "\nBrake: ";
-  switch(brakeStatus) {
-    case BRAKE_PULL: status += "Pull"; break;
-    case BRAKE_PUSH: status += "Push"; break;
-    default: status += "None"; break;
-  }
-  status += "\nSpeed: " + String(speed);
-  status += "\nSession: ";
-  status += sessionActive ? "Active" : "Inactive";
-  Serial.println("Sending status: " + status);
-  server.send(200, "text/plain", status);
+  server.send(200, "text/plain", "Speed set to " + String(speed) + "%");
 }
 
 void handleStartSession() {
@@ -791,7 +817,8 @@ void handleStartSession() {
   sessionStartTime = millis();
   sessionLog = "Session Started: " + String(millis()) + "ms\n";
   updateLCD();
-  server.send(200, "text/plain", "Session started");
+  Serial.println("Session started");
+  server.send(200, "text/plain", "Session started successfully");
 }
 
 void handleEndSession() {
@@ -803,15 +830,18 @@ void handleEndSession() {
   sessionActive = false;
   sessionLog += "Session Ended: " + String(millis()) + "ms\n";
   sessionLog += "Duration: " + String(millis() - sessionStartTime) + "ms\n";
+  
+  // Reset motor controls but preserve brake position
   speed = 0;
-  brakeStatus = BRAKE_NONE;
-  saveBrakeStatus(); // Save to EEPROM
   currentDirection = DIR_NONE;
   MotorDirection = 0;
+  // brakeStatus is preserved
+  
   sendLoRaData();
   updateLCD();
   String log = sessionLog;
   sessionLog = "";
+  Serial.println("Session ended");
   server.send(200, "text/plain", log);
 }
 
@@ -826,26 +856,62 @@ void handleGetSessionLog() {
 
 void handleReset() {
   setCORSHeaders();
+  
+  // Reset motor controls but preserve brake position
   speed = 0;
   currentDirection = DIR_NONE;
   MotorDirection = 0;
   // brakeStatus is preserved in EEPROM
+  
   Serial.println("Resetting device, preserving brakeStatus: " + String(brakeStatus));
+  
   if (sessionActive) {
     sessionActive = false;
     sessionLog += String(millis() - sessionStartTime) + "ms: Device reset\n";
     sessionLog = "";
   }
+  
   sendLoRaData();
   updateLCD();
-  server.send(200, "text/plain", "Reset complete, restarting...");
+  
+  server.send(200, "text/plain", "Reset complete, restarting device...");
+  
+  Serial.println("Device reset completed");
   delay(100);
   ESP.restart();
 }
 
+// Add a health check endpoint
+void handleHealth() {
+  setCORSHeaders();
+  
+  String health = "OK";
+  health += "\nUptime: " + String(millis() / 1000) + "s";
+  health += "\nFreeHeap: " + String(ESP.getFreeHeap()) + " bytes";
+  health += "\nClients: " + String(WiFi.softAPgetStationNum());
+  health += "\nSession: " + String(sessionActive ? "Active" : "Inactive");
+  
+  server.send(200, "text/plain", health);
+}
+
+// Add device info endpoint
+void handleDeviceInfo() {
+  setCORSHeaders();
+  
+  String info = "Device: AEROSPIN Controller";
+  info += "\nVersion: 1.0.0";
+  info += "\nChip ID: " + String(ESP.getChipId(), HEX);
+  info += "\nFlash Size: " + String(ESP.getFlashChipSize());
+  info += "\nCPU Frequency: " + String(ESP.getCpuFreqMHz()) + " MHz";
+  info += "\nSDK Version: " + String(ESP.getSdkVersion());
+  info += "\nBoot Version: " + String(ESP.getBootVersion());
+  
+  server.send(200, "text/plain", info);
+}
+
 void setup() {
   Serial.begin(115200);
-  Serial.println("\nStarting Motor Controller");
+  Serial.println("\n=== AEROSPIN Motor Controller Starting ===");
   yield();
 
   // Initialize EEPROM
@@ -893,7 +959,8 @@ void setup() {
 
   // Start WiFi AP
   Serial.println("Starting WiFi AP...");
-  if (!WiFi.softAP(ssid, password, 1, 0, 1)) {
+  WiFi.mode(WIFI_AP);
+  if (!WiFi.softAP(ssid, password, 1, 0, 1)) { // Max 4 connections
     Serial.println("WiFi AP setup failed!");
     lcd.setCursor(0, 3);
     lcd.print("WiFi AP Failed");
@@ -901,22 +968,35 @@ void setup() {
   } else {
     IPAddress ip = WiFi.softAPIP();
     Serial.println("AP IP: " + ip.toString());
+    Serial.println("AP SSID: " + String(ssid));
+    Serial.println("AP Password: " + String(password));
   }
   yield();
 
-  // Set up server routes
+  // Set up server routes with enhanced error handling
   Serial.println("Starting HTTP server...");
+  
+  // Main routes
   server.on("/", handleRoot);
+  server.on("/index.html", handleRoot);
   server.on("/jspdf.umd.min.js", handleJSPDF);
-  server.on("/direction", handleDirection);
-  server.on("/brake", handleBrake);
-  server.on("/speed", handleSpeed);
-  server.on("/ping", handlePing);
-  server.on("/status", handleStatus);
-  server.on("/startSession", handleStartSession);
-  server.on("/endSession", handleEndSession);
-  server.on("/getSessionLog", handleGetSessionLog);
-  server.on("/reset", handleReset);
+  
+  // API routes
+  server.on("/ping", HTTP_GET, handlePing);
+  server.on("/status", HTTP_GET, handleStatus);
+  server.on("/health", HTTP_GET, handleHealth);
+  server.on("/info", HTTP_GET, handleDeviceInfo);
+  
+  // Control routes
+  server.on("/direction", HTTP_GET, handleDirection);
+  server.on("/brake", HTTP_GET, handleBrake);
+  server.on("/speed", HTTP_GET, handleSpeed);
+  
+  // Session routes
+  server.on("/startSession", HTTP_GET, handleStartSession);
+  server.on("/endSession", HTTP_GET, handleEndSession);
+  server.on("/getSessionLog", HTTP_GET, handleGetSessionLog);
+  server.on("/reset", HTTP_GET, handleReset);
   
   // Handle OPTIONS requests for CORS preflight
   server.onNotFound([]() {
@@ -924,23 +1004,54 @@ void setup() {
       handleOptions();
     } else {
       setCORSHeaders();
-      server.send(404, "text/plain", "Not Found");
+      String message = "File Not Found\n\n";
+      message += "URI: " + server.uri();
+      message += "\nMethod: " + (server.method() == HTTP_GET ? "GET" : "POST");
+      message += "\nArguments: " + String(server.args());
+      for (uint8_t i = 0; i < server.args(); i++) {
+        message += "\n " + server.argName(i) + ": " + server.arg(i);
+      }
+      server.send(404, "text/plain", message);
     }
   });
   
   server.begin();
-  Serial.println("HTTP server started");
+  Serial.println("HTTP server started successfully");
+  Serial.println("Available endpoints:");
+  Serial.println("  GET  /           - Web interface");
+  Serial.println("  GET  /ping       - Connection test");
+  Serial.println("  GET  /status     - Device status");
+  Serial.println("  GET  /health     - Health check");
+  Serial.println("  GET  /info       - Device info");
+  Serial.println("  GET  /direction  - Set motor direction");
+  Serial.println("  GET  /brake      - Control brake");
+  Serial.println("  GET  /speed      - Set motor speed");
+  Serial.println("  GET  /startSession - Start session");
+  Serial.println("  GET  /endSession - End session");
+  Serial.println("  GET  /reset      - Reset device");
   yield();
 
   updateLCD();
+  Serial.println("=== AEROSPIN Controller Ready ===");
 }
 
 void loop() {
   server.handleClient();
   MDNS.update();
+  
   if (newDataReceived) {
     updateLCD();
   }
+  
+  // Watchdog and status updates
+  static unsigned long lastStatusUpdate = 0;
+  if (millis() - lastStatusUpdate > 30000) { // Every 30 seconds
+    lastStatusUpdate = millis();
+    Serial.println("Status: Running, Clients: " + String(WiFi.softAPgetStationNum()) + 
+                   ", Session: " + String(sessionActive ? "Active" : "Inactive") +
+                   ", Free Heap: " + String(ESP.getFreeHeap()));
+  }
+  
   delay(10);
   yield();
 }
