@@ -97,13 +97,19 @@ export function useDeviceState() {
         } else if (trimmedLine.startsWith('Speed: ')) {
           updates.speed = parseInt(trimmedLine.replace('Speed: ', '')) || 0;
         } else if (trimmedLine.startsWith('Session: ')) {
-          updates.sessionActive = trimmedLine.replace('Session: ', '') === 'Active';
+          const sessionStatus = trimmedLine.replace('Session: ', '');
+          updates.sessionActive = sessionStatus === 'Active';
+          console.log('Parsed session status from Arduino:', sessionStatus, '-> sessionActive:', updates.sessionActive);
         }
       });
 
       if (Object.keys(updates).length > 0) {
-        setDeviceState(prev => ({ ...prev, ...updates }));
-        console.log('Device state updated:', updates);
+        console.log('Updating device state with parsed data:', updates);
+        setDeviceState(prev => {
+          const newState = { ...prev, ...updates };
+          console.log('New device state:', newState);
+          return newState;
+        });
       }
     } catch (error) {
       console.log('Failed to parse device status:', error);
@@ -115,7 +121,12 @@ export function useDeviceState() {
       setPreviousBrakePosition(deviceState.brake);
     }
 
-    setDeviceState(prev => ({ ...prev, ...updates }));
+    console.log('Updating device state:', updates);
+    setDeviceState(prev => {
+      const newState = { ...prev, ...updates };
+      console.log('Device state updated to:', newState);
+      return newState;
+    });
 
     if (deviceState.sessionActive) {
       Object.entries(updates).forEach(([key, value]) => {
@@ -156,7 +167,13 @@ export function useDeviceState() {
   const startSession = useCallback(async () => {
     const sessionStartTime = new Date().toLocaleString();
     
-    setDeviceState(prev => ({ ...prev, sessionActive: true }));
+    console.log('Starting session...');
+    setDeviceState(prev => {
+      const newState = { ...prev, sessionActive: true };
+      console.log('Session started - device state:', newState);
+      return newState;
+    });
+    
     setSessionData({
       startTime: sessionStartTime,
       duration: '00:00:00',
@@ -169,14 +186,19 @@ export function useDeviceState() {
     }
 
     try {
-      await sendCommand('/startSession');
-      addSessionEvent('Connected to device successfully');
+      const result = await sendCommand('/startSession');
+      if (result.ok) {
+        addSessionEvent('Connected to device successfully');
+        // Fetch updated status after starting session
+        setTimeout(fetchDeviceStatus, 1000);
+      }
     } catch (error) {
       addSessionEvent('Device connection lost - continuing offline');
     }
-  }, [isConnected, sendCommand, addSessionEvent]);
+  }, [isConnected, sendCommand, addSessionEvent, fetchDeviceStatus]);
 
   const endSession = useCallback(async () => {
+    console.log('Ending session...');
     addSessionEvent(`Session ended at ${new Date().toLocaleString()}`);
 
     if (isConnected) {
@@ -193,12 +215,16 @@ export function useDeviceState() {
     }
 
     setTimeout(() => {
-      setDeviceState(prev => ({ 
-        ...prev, 
-        sessionActive: false,
-        direction: 'None',
-        speed: 0,
-      }));
+      setDeviceState(prev => {
+        const newState = { 
+          ...prev, 
+          sessionActive: false,
+          direction: 'None',
+          speed: 0,
+        };
+        console.log('Session ended - device state:', newState);
+        return newState;
+      });
     }, 100);
   }, [isConnected, sendCommand, addSessionEvent]);
 
@@ -275,8 +301,15 @@ export function useDeviceState() {
 
   const refreshConnection = useCallback(async () => {
     console.log('Manual connection refresh for Android APK...');
-    return testConnection();
-  }, [testConnection]);
+    const success = await testConnection();
+    
+    // After successful connection, fetch device status to sync session state
+    if (success) {
+      setTimeout(fetchDeviceStatus, 1000);
+    }
+    
+    return success;
+  }, [testConnection, fetchDeviceStatus]);
 
   const calculateDuration = useCallback((startTime: string): string => {
     if (!startTime) return '00:00:00';
@@ -292,10 +325,8 @@ export function useDeviceState() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }, []);
 
-  // Session data updates
+  // Session data updates and periodic status fetching
   useEffect(() => {
-    if (!deviceState.sessionActive) return;
-
     let durationInterval: NodeJS.Timeout;
     let statusInterval: NodeJS.Timeout;
     let isComponentMounted = true;
@@ -309,11 +340,20 @@ export function useDeviceState() {
       }));
     };
 
-    durationInterval = setInterval(updateSessionData, 1000);
+    // Update duration every second if session is active
+    if (deviceState.sessionActive) {
+      durationInterval = setInterval(updateSessionData, 1000);
+    }
 
+    // Fetch device status periodically if connected
     if (isConnected) {
       statusInterval = setInterval(fetchDeviceStatus, 20000);
-      setTimeout(fetchDeviceStatus, 3000);
+      // Initial fetch after a short delay
+      setTimeout(() => {
+        if (isComponentMounted) {
+          fetchDeviceStatus();
+        }
+      }, 3000);
     }
 
     return () => {
@@ -322,6 +362,11 @@ export function useDeviceState() {
       if (statusInterval) clearInterval(statusInterval);
     };
   }, [deviceState.sessionActive, isConnected, fetchDeviceStatus, calculateDuration]);
+
+  // Debug logging for session state
+  useEffect(() => {
+    console.log('Device state changed:', deviceState);
+  }, [deviceState]);
 
   return {
     deviceState,
