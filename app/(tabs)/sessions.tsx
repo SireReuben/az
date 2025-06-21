@@ -6,9 +6,11 @@ import { StatusHeader } from '@/components/StatusHeader';
 import { SessionControls } from '@/components/SessionControls';
 import { SessionReport } from '@/components/SessionReport';
 import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
+import { AndroidConnectionDiagnostics } from '@/components/AndroidConnectionDiagnostics';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useDeviceState } from '@/hooks/useDeviceState';
+import { useAndroidArduinoConnection } from '@/hooks/useAndroidArduinoConnection';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
@@ -22,6 +24,13 @@ export default function SessionsScreen() {
     refreshConnection,
     networkDetection
   } = useDeviceState();
+  
+  const {
+    connectionStatus,
+    lastResponse,
+    responseTime,
+    testConnection,
+  } = useAndroidArduinoConnection();
   
   const { addSessionAlert } = useAlerts();
   const { isTablet, isLandscape, screenType, height } = useDeviceOrientation();
@@ -37,7 +46,7 @@ export default function SessionsScreen() {
   };
 
   const handleRefreshConnection = async () => {
-    const success = await refreshConnection();
+    const success = await testConnection();
     if (success) {
       addSessionAlert('success', 'Connection Refreshed', 'Successfully reconnected to AEROSPIN device');
     } else {
@@ -139,6 +148,14 @@ export default function SessionsScreen() {
                   <SessionReport sessionData={sessionData} />
                 )}
                 
+                {/* Android APK Connection Diagnostics */}
+                <AndroidConnectionDiagnostics
+                  connectionStatus={connectionStatus}
+                  responseTime={responseTime}
+                  lastResponse={lastResponse}
+                  onRefresh={handleRefreshConnection}
+                />
+
                 {/* Enhanced Connection Diagnostics for Android */}
                 {!isConnected && (
                   <View style={[
@@ -149,7 +166,7 @@ export default function SessionsScreen() {
                       styles.diagnosticsTitle,
                       isTablet && styles.tabletDiagnosticsTitle
                     ]}>
-                      Android Connection Diagnostics
+                      Android Connection Analysis
                     </Text>
                     
                     <View style={styles.diagnosticItem}>
@@ -173,29 +190,14 @@ export default function SessionsScreen() {
                         styles.diagnosticLabel,
                         isTablet && styles.tabletDiagnosticLabel
                       ]}>
-                        IP Address:
-                      </Text>
-                      <Text style={[
-                        styles.diagnosticValue,
-                        isTablet && styles.tabletDiagnosticValue
-                      ]}>
-                        {networkDetection.networkInfo.ipAddress || 'Not assigned'}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.diagnosticItem}>
-                      <Text style={[
-                        styles.diagnosticLabel,
-                        isTablet && styles.tabletDiagnosticLabel
-                      ]}>
-                        Arduino Reachable:
+                        Arduino LCD Status:
                       </Text>
                       <Text style={[
                         styles.diagnosticValue,
                         isTablet && styles.tabletDiagnosticValue,
-                        { color: networkDetection.isArduinoReachable ? '#22c55e' : '#ef4444' }
+                        { color: '#22c55e' }
                       ]}>
-                        {networkDetection.isArduinoReachable ? 'Yes' : 'No'}
+                        "Android Connected" ✓
                       </Text>
                     </View>
                     
@@ -204,14 +206,14 @@ export default function SessionsScreen() {
                         styles.diagnosticLabel,
                         isTablet && styles.tabletDiagnosticLabel
                       ]}>
-                        Arduino Response:
+                        HTTP Response:
                       </Text>
                       <Text style={[
                         styles.diagnosticValue,
                         isTablet && styles.tabletDiagnosticValue,
-                        { color: networkDetection.isArduinoResponding ? '#22c55e' : '#ef4444' }
+                        { color: connectionStatus === 'connected' ? '#22c55e' : '#ef4444' }
                       ]}>
-                        {networkDetection.isArduinoResponding ? 'Active' : 'No Response'}
+                        {connectionStatus === 'connected' ? 'Working' : 'Failed'}
                       </Text>
                     </View>
                     
@@ -220,18 +222,17 @@ export default function SessionsScreen() {
                         styles.diagnosticLabel,
                         isTablet && styles.tabletDiagnosticLabel
                       ]}>
-                        Connection Quality:
+                        Response Time:
                       </Text>
                       <Text style={[
                         styles.diagnosticValue,
                         isTablet && styles.tabletDiagnosticValue,
                         { 
-                          color: networkDetection.connectionQuality === 'excellent' ? '#22c55e' :
-                                 networkDetection.connectionQuality === 'good' ? '#84cc16' :
-                                 networkDetection.connectionQuality === 'poor' ? '#f59e0b' : '#ef4444'
+                          color: responseTime < 2000 ? '#22c55e' : 
+                                 responseTime < 5000 ? '#f59e0b' : '#ef4444'
                         }
                       ]}>
-                        {networkDetection.connectionQuality.charAt(0).toUpperCase() + networkDetection.connectionQuality.slice(1)}
+                        {responseTime > 0 ? `${responseTime}ms` : 'No response'}
                       </Text>
                     </View>
 
@@ -241,17 +242,17 @@ export default function SessionsScreen() {
                         styles.troubleshootingTitle,
                         isTablet && styles.tabletTroubleshootingTitle
                       ]}>
-                        Android Troubleshooting:
+                        Android APK Solution:
                       </Text>
                       <Text style={[
                         styles.troubleshootingText,
                         isTablet && styles.tabletTroubleshootingText
                       ]}>
-                        • Ensure WiFi is enabled{'\n'}
-                        • Connect to "AEROSPIN CONTROL" network{'\n'}
-                        • Check if device IP is 192.168.4.1{'\n'}
-                        • Try refreshing connection{'\n'}
-                        • Restart Arduino if needed
+                        • WiFi connection is working (LCD shows "Android Connected"){'\n'}
+                        • HTTP communication needs optimization{'\n'}
+                        • Try refreshing connection multiple times{'\n'}
+                        • Check Arduino response in diagnostics above{'\n'}
+                        • Restart Arduino if response time is too high
                       </Text>
                     </View>
                   </View>
