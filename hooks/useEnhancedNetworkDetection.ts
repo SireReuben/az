@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, AppState, AppStateStatus } from 'react-native';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import TcpSocket from 'react-native-tcp-socket';
 
+// Web-compatible network detection
 interface NetworkDetectionState {
   isConnectedToArduinoWifi: boolean;
   isArduinoReachable: boolean;
@@ -48,40 +47,63 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
     networkInfo: {
       ssid: null,
       ipAddress: null,
-      isWifiEnabled: false,
-      isInternetReachable: false,
+      isWifiEnabled: true, // Assume enabled for web
+      isInternetReachable: true, // Assume reachable for web
     },
     lastSuccessfulConnection: null,
     connectionAttempts: 0,
     detectionStatus: 'checking',
   });
 
-  const socketRef = useRef<any>(null);
   const detectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isComponentMounted = useRef(true);
   const lastDetectionTime = useRef<number>(0);
 
-  // Layer 1: Network Info Detection (SSID and IP validation)
+  // Layer 1: Network Info Detection (Web-compatible version)
   const checkNetworkInfo = useCallback(async (): Promise<boolean> => {
     try {
-      const netInfoState = await NetInfo.fetch();
-      
       if (!isComponentMounted.current) return false;
 
-      const networkInfo = {
+      let networkInfo = {
         ssid: null as string | null,
         ipAddress: null as string | null,
-        isWifiEnabled: netInfoState.type === 'wifi',
-        isInternetReachable: netInfoState.isInternetReachable ?? false,
+        isWifiEnabled: true,
+        isInternetReachable: navigator.onLine,
       };
 
-      // Extract SSID and IP address based on platform
-      if (Platform.OS === 'android' && netInfoState.type === 'wifi' && netInfoState.details) {
-        networkInfo.ssid = netInfoState.details.ssid || null;
-        networkInfo.ipAddress = netInfoState.details.ipAddress || null;
-      } else if (Platform.OS === 'ios' && netInfoState.type === 'wifi' && netInfoState.details) {
-        networkInfo.ssid = netInfoState.details.ssid || null;
-        networkInfo.ipAddress = netInfoState.details.ipAddress || null;
+      // For web platform, we can't detect SSID directly
+      // We'll assume connection if we can reach the Arduino
+      if (Platform.OS === 'web') {
+        // Try to detect if we're on the Arduino network by checking if we can reach it
+        try {
+          const response = await fetch(`http://${finalConfig.arduinoIP}/ping`, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(2000),
+          });
+          
+          if (response.ok) {
+            networkInfo.ssid = finalConfig.expectedSSID;
+            networkInfo.ipAddress = '192.168.4.2'; // Typical client IP on Arduino network
+          }
+        } catch (error) {
+          // Not on Arduino network or Arduino not reachable
+        }
+      } else {
+        // For mobile platforms, use NetInfo if available
+        try {
+          const NetInfo = require('@react-native-community/netinfo');
+          const netInfoState = await NetInfo.fetch();
+          
+          networkInfo.isWifiEnabled = netInfoState.type === 'wifi';
+          networkInfo.isInternetReachable = netInfoState.isInternetReachable ?? false;
+          
+          if (netInfoState.type === 'wifi' && netInfoState.details) {
+            networkInfo.ssid = netInfoState.details.ssid || null;
+            networkInfo.ipAddress = netInfoState.details.ipAddress || null;
+          }
+        } catch (error) {
+          console.log('NetInfo not available, using fallback detection');
+        }
       }
 
       // Update network info
@@ -93,9 +115,8 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       // Check if connected to Arduino WiFi
       const isConnectedToArduinoWifi = 
         networkInfo.isWifiEnabled && 
-        networkInfo.ssid === finalConfig.expectedSSID &&
-        networkInfo.ipAddress !== null &&
-        networkInfo.ipAddress.startsWith('192.168.4.');
+        (networkInfo.ssid === finalConfig.expectedSSID || Platform.OS === 'web') &&
+        networkInfo.ipAddress !== null;
 
       setState(prev => ({
         ...prev,
@@ -107,99 +128,131 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       console.log('Network info check failed:', error);
       return false;
     }
-  }, [finalConfig.expectedSSID]);
+  }, [finalConfig.expectedSSID, finalConfig.arduinoIP]);
 
-  // Layer 2: TCP Socket Connection Test
+  // Layer 2: TCP Socket Connection Test (Web-compatible)
   const testTcpConnection = useCallback(async (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      if (!isComponentMounted.current) {
-        resolve(false);
-        return;
-      }
+    try {
+      if (!isComponentMounted.current) return false;
 
-      // Clean up existing socket
-      if (socketRef.current) {
+      if (Platform.OS === 'web') {
+        // For web, we'll use a simple HTTP request as a proxy for TCP connectivity
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), finalConfig.connectionTimeout);
+        
         try {
-          socketRef.current.destroy();
-        } catch (error) {
-          console.log('Error destroying previous socket:', error);
-        }
-        socketRef.current = null;
-      }
-
-      const socket = TcpSocket.createConnection({
-        port: finalConfig.arduinoPort,
-        host: finalConfig.arduinoIP,
-        timeout: finalConfig.connectionTimeout,
-      });
-
-      socketRef.current = socket;
-      let resolved = false;
-
-      const cleanup = () => {
-        if (socket && !socket.destroyed) {
-          try {
-            socket.destroy();
-          } catch (error) {
-            console.log('Error during socket cleanup:', error);
+          const response = await fetch(`http://${finalConfig.arduinoIP}/ping`, {
+            method: 'HEAD',
+            signal: controller.signal,
+          });
+          
+          clearTimeout(timeoutId);
+          
+          const isReachable = response.ok || response.status < 500;
+          
+          if (isComponentMounted.current) {
+            setState(prev => ({
+              ...prev,
+              isArduinoReachable: isReachable,
+            }));
           }
+          
+          return isReachable;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          
+          if (isComponentMounted.current) {
+            setState(prev => ({
+              ...prev,
+              isArduinoReachable: false,
+            }));
+          }
+          
+          return false;
         }
-        if (socketRef.current === socket) {
-          socketRef.current = null;
+      } else {
+        // For mobile platforms, use TCP socket if available
+        try {
+          const TcpSocket = require('react-native-tcp-socket');
+          
+          return new Promise((resolve) => {
+            const socket = TcpSocket.createConnection({
+              port: finalConfig.arduinoPort,
+              host: finalConfig.arduinoIP,
+              timeout: finalConfig.connectionTimeout,
+            });
+
+            let resolved = false;
+
+            const cleanup = () => {
+              if (socket && !socket.destroyed) {
+                try {
+                  socket.destroy();
+                } catch (error) {
+                  console.log('Error during socket cleanup:', error);
+                }
+              }
+            };
+
+            const resolveOnce = (result: boolean) => {
+              if (!resolved) {
+                resolved = true;
+                cleanup();
+                resolve(result);
+              }
+            };
+
+            socket.on('connect', () => {
+              if (isComponentMounted.current) {
+                setState(prev => ({
+                  ...prev,
+                  isArduinoReachable: true,
+                }));
+              }
+              resolveOnce(true);
+            });
+
+            socket.on('error', () => {
+              if (isComponentMounted.current) {
+                setState(prev => ({
+                  ...prev,
+                  isArduinoReachable: false,
+                }));
+              }
+              resolveOnce(false);
+            });
+
+            socket.on('timeout', () => {
+              if (isComponentMounted.current) {
+                setState(prev => ({
+                  ...prev,
+                  isArduinoReachable: false,
+                }));
+              }
+              resolveOnce(false);
+            });
+
+            // Fallback timeout
+            setTimeout(() => {
+              resolveOnce(false);
+            }, finalConfig.connectionTimeout + 1000);
+          });
+        } catch (error) {
+          console.log('TCP Socket not available, using HTTP fallback');
+          // Fallback to HTTP test
+          return testTcpConnection();
         }
-      };
-
-      const resolveOnce = (result: boolean) => {
-        if (!resolved) {
-          resolved = true;
-          cleanup();
-          resolve(result);
-        }
-      };
-
-      socket.on('connect', () => {
-        console.log('TCP connection established to Arduino');
-        if (isComponentMounted.current) {
-          setState(prev => ({
-            ...prev,
-            isArduinoReachable: true,
-          }));
-        }
-        resolveOnce(true);
-      });
-
-      socket.on('error', (error) => {
-        console.log('TCP connection error:', error);
-        if (isComponentMounted.current) {
-          setState(prev => ({
-            ...prev,
-            isArduinoReachable: false,
-          }));
-        }
-        resolveOnce(false);
-      });
-
-      socket.on('timeout', () => {
-        console.log('TCP connection timeout');
-        if (isComponentMounted.current) {
-          setState(prev => ({
-            ...prev,
-            isArduinoReachable: false,
-          }));
-        }
-        resolveOnce(false);
-      });
-
-      socket.on('close', () => {
-        console.log('TCP connection closed');
-        cleanup();
-      });
-
-      // Fallback timeout
-      setTimeout(() => {
-        resolveOnce(false);
-      }, finalConfig.connectionTimeout + 1000);
-    });
+      }
+    } catch (error) {
+      console.log('TCP connection test failed:', error);
+      if (isComponentMounted.current) {
+        setState(prev => ({
+          ...prev,
+          isArduinoReachable: false,
+        }));
+      }
+      return false;
+    }
   }, [finalConfig.arduinoIP, finalConfig.arduinoPort, finalConfig.connectionTimeout]);
 
   // Layer 3: Application-Level Handshake
@@ -271,7 +324,7 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       // Layer 1: Check network info and SSID
       const isOnArduinoNetwork = await checkNetworkInfo();
       
-      if (!isOnArduinoNetwork) {
+      if (!isOnArduinoNetwork && Platform.OS !== 'web') {
         setState(prev => ({
           ...prev,
           detectionStatus: 'disconnected',
@@ -362,19 +415,12 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       clearInterval(detectionIntervalRef.current);
       detectionIntervalRef.current = null;
     }
-    
-    if (socketRef.current) {
-      try {
-        socketRef.current.destroy();
-      } catch (error) {
-        console.log('Error destroying socket during stop:', error);
-      }
-      socketRef.current = null;
-    }
   }, []);
 
-  // Handle app state changes
+  // Handle app state changes (only on mobile)
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
         // App became active, restart monitoring

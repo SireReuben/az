@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusHeader } from '@/components/StatusHeader';
 import { AlertsList } from '@/components/AlertsList';
-import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useDeviceState } from '@/hooks/useDeviceState';
@@ -21,8 +21,17 @@ export default function AlertsScreen() {
     markAllAsRead 
   } = useAlerts();
   
-  const { isConnected: deviceConnected } = useDeviceState();
+  const { 
+    isConnected: deviceConnected, 
+    refreshConnection,
+    networkDetection 
+  } = useDeviceState();
+  
   const { isTablet, isLandscape, screenType } = useDeviceOrientation();
+
+  const handleRefreshConnection = async () => {
+    await refreshConnection();
+  };
 
   const getLayoutStyle = () => {
     if (isTablet && isLandscape && screenType !== 'phone') {
@@ -49,7 +58,12 @@ export default function AlertsScreen() {
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
-                <ConnectionStatus isConnected={deviceConnected} />
+                <EnhancedConnectionStatus 
+                  isConnected={deviceConnected} 
+                  networkDetection={networkDetection}
+                  onRefresh={handleRefreshConnection}
+                  showDetails={!deviceConnected}
+                />
                 
                 <View style={[
                   styles.card,
