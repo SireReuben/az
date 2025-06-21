@@ -9,19 +9,24 @@ import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 export default function SettingsScreen() {
-  const { isTablet, isLandscape, screenType } = useDeviceOrientation();
+  const { isTablet, isLandscape, screenType, height } = useDeviceOrientation();
 
   const getLayoutStyle = () => {
     if (isTablet && isLandscape && screenType !== 'phone') {
-      return styles.tabletLandscapeLayout;
+      return {
+        ...styles.tabletLandscapeLayout,
+        minHeight: height - 120,
+      };
     }
-    return null;
+    return {
+      minHeight: height - 120,
+    };
   };
 
   return (
     <LinearGradient
       colors={['#1e3a8a', '#3b82f6']}
-      style={styles.container}
+      style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
         <ScrollView 
@@ -29,10 +34,11 @@ export default function SettingsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            isTablet && styles.tabletScrollContent
+            isTablet && styles.tabletScrollContent,
+            { minHeight: height - 120 }
           ]}
         >
-          <ResponsiveContainer>
+          <ResponsiveContainer fillScreen={true}>
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
@@ -88,13 +94,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 120,
   },
   tabletScrollContent: {
     padding: 24,
+    paddingBottom: 140,
   },
   tabletLandscapeLayout: {
     flexDirection: 'row',
     gap: 24,
+    minHeight: '100%',
   },
   leftColumn: {
     flex: 1,

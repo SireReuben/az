@@ -24,7 +24,7 @@ export default function SessionsScreen() {
   } = useDeviceState();
   
   const { addSessionAlert } = useAlerts();
-  const { isTablet, isLandscape, screenType } = useDeviceOrientation();
+  const { isTablet, isLandscape, screenType, height } = useDeviceOrientation();
 
   const handleStartSession = async () => {
     await startSession();
@@ -47,15 +47,20 @@ export default function SessionsScreen() {
 
   const getLayoutStyle = () => {
     if (isTablet && isLandscape && screenType !== 'phone') {
-      return styles.tabletLandscapeLayout;
+      return {
+        ...styles.tabletLandscapeLayout,
+        minHeight: height - 120, // Account for safe areas and tab bar
+      };
     }
-    return null;
+    return {
+      minHeight: height - 120,
+    };
   };
 
   return (
     <LinearGradient
       colors={['#1e3a8a', '#3b82f6']}
-      style={styles.container}
+      style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
         <ScrollView 
@@ -63,10 +68,11 @@ export default function SessionsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            isTablet && styles.tabletScrollContent
+            isTablet && styles.tabletScrollContent,
+            { minHeight: height - 120 } // Ensure full height usage
           ]}
         >
-          <ResponsiveContainer>
+          <ResponsiveContainer fillScreen={true}>
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
@@ -133,7 +139,7 @@ export default function SessionsScreen() {
                   <SessionReport sessionData={sessionData} />
                 )}
                 
-                {/* Connection Diagnostics */}
+                {/* Enhanced Connection Diagnostics for Android */}
                 {!isConnected && (
                   <View style={[
                     styles.diagnosticsCard,
@@ -143,7 +149,7 @@ export default function SessionsScreen() {
                       styles.diagnosticsTitle,
                       isTablet && styles.tabletDiagnosticsTitle
                     ]}>
-                      Connection Diagnostics
+                      Android Connection Diagnostics
                     </Text>
                     
                     <View style={styles.diagnosticItem}>
@@ -198,6 +204,22 @@ export default function SessionsScreen() {
                         styles.diagnosticLabel,
                         isTablet && styles.tabletDiagnosticLabel
                       ]}>
+                        Arduino Response:
+                      </Text>
+                      <Text style={[
+                        styles.diagnosticValue,
+                        isTablet && styles.tabletDiagnosticValue,
+                        { color: networkDetection.isArduinoResponding ? '#22c55e' : '#ef4444' }
+                      ]}>
+                        {networkDetection.isArduinoResponding ? 'Active' : 'No Response'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.diagnosticItem}>
+                      <Text style={[
+                        styles.diagnosticLabel,
+                        isTablet && styles.tabletDiagnosticLabel
+                      ]}>
                         Connection Quality:
                       </Text>
                       <Text style={[
@@ -210,6 +232,26 @@ export default function SessionsScreen() {
                         }
                       ]}>
                         {networkDetection.connectionQuality.charAt(0).toUpperCase() + networkDetection.connectionQuality.slice(1)}
+                      </Text>
+                    </View>
+
+                    {/* Android-specific troubleshooting */}
+                    <View style={styles.troubleshootingSection}>
+                      <Text style={[
+                        styles.troubleshootingTitle,
+                        isTablet && styles.tabletTroubleshootingTitle
+                      ]}>
+                        Android Troubleshooting:
+                      </Text>
+                      <Text style={[
+                        styles.troubleshootingText,
+                        isTablet && styles.tabletTroubleshootingText
+                      ]}>
+                        • Ensure WiFi is enabled{'\n'}
+                        • Connect to "AEROSPIN CONTROL" network{'\n'}
+                        • Check if device IP is 192.168.4.1{'\n'}
+                        • Try refreshing connection{'\n'}
+                        • Restart Arduino if needed
                       </Text>
                     </View>
                   </View>
@@ -235,13 +277,16 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 120, // Extra padding for tab bar
   },
   tabletScrollContent: {
     padding: 24,
+    paddingBottom: 140, // Extra padding for tab bar on tablets
   },
   tabletLandscapeLayout: {
     flexDirection: 'row',
     gap: 24,
+    minHeight: '100%',
   },
   leftColumn: {
     flex: 1,
@@ -366,5 +411,31 @@ const styles = StyleSheet.create({
   },
   tabletDiagnosticValue: {
     fontSize: 16,
+  },
+  troubleshootingSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  troubleshootingTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#dc2626',
+    marginBottom: 8,
+  },
+  tabletTroubleshootingTitle: {
+    fontSize: 16,
+    marginBottom: 12,
+  },
+  troubleshootingText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#7f1d1d',
+    lineHeight: 18,
+  },
+  tabletTroubleshootingText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
