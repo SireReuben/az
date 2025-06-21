@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "controller",
-    "slug": "controller",
+    "name": "AEROSPIN Control",
+    "slug": "aerospin-control",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/Aerospin-1-300x200.png",
@@ -17,7 +17,29 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.aerospin.control"
+      "bundleIdentifier": "com.aerospin.control",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to detect and connect to AEROSPIN device Wi-Fi network.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to detect and connect to AEROSPIN device Wi-Fi network.",
+        "NSLocalNetworkUsageDescription": "This app needs access to local network to communicate with AEROSPIN device.",
+        "NSBonjourServices": [
+          "_http._tcp"
+        ],
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSExceptionDomains": {
+            "192.168.4.1": {
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSExceptionMinimumTLSVersion": "1.0",
+              "NSIncludesSubdomains": false
+            },
+            "localhost": {
+              "NSExceptionAllowsInsecureHTTPLoads": true
+            }
+          }
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -53,7 +75,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "This app needs access to location to detect and connect to AEROSPIN device Wi-Fi network."
+          "locationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to detect and connect to AEROSPIN device Wi-Fi network."
         }
       ]
     ],

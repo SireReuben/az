@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { useAndroidArduinoConnection } from './useAndroidArduinoConnection';
+import { useIOSNetworkDetection } from './useIOSNetworkDetection';
 
 interface DeviceState {
   direction: string;
@@ -31,7 +32,35 @@ export function useDeviceState() {
 
   const [previousBrakePosition, setPreviousBrakePosition] = useState<string>('None');
 
-  // Use the Android-optimized Arduino connection
+  // Use platform-specific connection hooks
+  const androidConnection = useAndroidArduinoConnection();
+  const iosConnection = useIOSNetworkDetection();
+
+  // Select the appropriate connection based on platform
+  const connection = Platform.OS === 'ios' ? {
+    isConnected: iosConnection.isFullyConnected,
+    connectionStatus: iosConnection.detectionStatus,
+    lastResponse: null,
+    responseTime: 0,
+    sendCommand: async (endpoint: string, timeout?: number) => {
+      try {
+        const response = await fetch(`http://192.168.4.1${endpoint}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'AEROSPIN-iOS/1.0.0',
+          },
+        });
+        
+        const data = response.ok ? await response.json() : null;
+        return { ok: response.ok, data, status: response.status };
+      } catch (error) {
+        throw error;
+      }
+    },
+    testConnection: iosConnection.refreshConnection,
+  } : androidConnection;
+
   const {
     isConnected,
     connectionStatus,
@@ -39,10 +68,17 @@ export function useDeviceState() {
     responseTime,
     sendCommand,
     testConnection,
-  } = useAndroidArduinoConnection();
+  } = connection;
 
   // Enhanced network detection info for compatibility
-  const networkDetection = {
+  const networkDetection = Platform.OS === 'ios' ? {
+    isConnectedToArduinoWifi: iosConnection.isConnectedToArduinoWifi,
+    isArduinoReachable: iosConnection.isArduinoReachable,
+    isArduinoResponding: iosConnection.isArduinoResponding,
+    connectionQuality: iosConnection.connectionQuality,
+    networkInfo: iosConnection.networkInfo,
+    detectionStatus: iosConnection.detectionStatus,
+  } : {
     isConnectedToArduinoWifi: true, // Assume true since Arduino LCD shows connection
     isArduinoReachable: connectionStatus === 'connected',
     isArduinoResponding: isConnected,
@@ -309,7 +345,7 @@ export function useDeviceState() {
   }, [updateDeviceState, deviceState.sessionActive, addSessionEvent]);
 
   const refreshConnection = useCallback(async () => {
-    console.log('Manual connection refresh for Android APK...');
+    console.log(`Manual connection refresh for ${Platform.OS}...`);
     const success = await testConnection();
     
     // After successful connection, fetch device status to sync session state
