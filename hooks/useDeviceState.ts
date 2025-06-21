@@ -72,12 +72,11 @@ export function useDeviceState() {
     if (!isConnected) return;
 
     try {
-      const response = await sendCommand('/status', 8000);
+      const result = await sendCommand('/status', 8000);
       
-      if (response.ok) {
-        const statusText = await response.text();
-        console.log('Device status received:', statusText);
-        parseDeviceStatus(statusText);
+      if (result.ok) {
+        console.log('Device status received:', result.text);
+        parseDeviceStatus(result.text);
       }
     } catch (error) {
       console.log('Failed to fetch device status:', error);
@@ -182,10 +181,9 @@ export function useDeviceState() {
 
     if (isConnected) {
       try {
-        const response = await sendCommand('/endSession');
-        if (response.ok) {
-          const logData = await response.text();
-          console.log('Session ended. Final log:', logData);
+        const result = await sendCommand('/endSession');
+        if (result.ok) {
+          console.log('Session ended. Final log:', result.text);
           addSessionEvent('Session data saved to device');
         }
       } catch (error) {

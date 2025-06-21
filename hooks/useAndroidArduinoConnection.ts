@@ -6,7 +6,7 @@ interface AndroidArduinoConnection {
   connectionStatus: 'checking' | 'connected' | 'failed' | 'timeout';
   lastResponse: string | null;
   responseTime: number;
-  sendCommand: (endpoint: string, timeout?: number) => Promise<Response>;
+  sendCommand: (endpoint: string, timeout?: number) => Promise<{ ok: boolean; text: string; status: number }>;
   testConnection: () => Promise<boolean>;
   connectionAttempts: number;
 }
@@ -25,7 +25,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
   const isComponentMounted = useRef(true);
 
   // Enhanced command sending with Android APK specific optimizations
-  const sendCommand = useCallback(async (endpoint: string, timeout: number = DEFAULT_TIMEOUT): Promise<Response> => {
+  const sendCommand = useCallback(async (endpoint: string, timeout: number = DEFAULT_TIMEOUT): Promise<{ ok: boolean; text: string; status: number }> => {
     const startTime = Date.now();
     
     try {
@@ -104,23 +104,30 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
       
       console.log(`[Android APK] Response received in ${responseTimeMs}ms, status: ${response.status}`);
       
+      // Read the response text once here
+      const responseText = response.ok ? await response.text() : '';
+      
       if (isComponentMounted.current) {
         setResponseTime(responseTimeMs);
         setConnectionStatus(response.ok ? 'connected' : 'failed');
         setIsConnected(response.ok);
+        
+        if (response.ok && responseText) {
+          setLastResponse(responseText);
+          console.log(`[Android APK] Response text: ${responseText.substring(0, 200)}...`);
+        }
       }
 
-      if (response.ok) {
-        const responseText = await response.text();
-        if (isComponentMounted.current) {
-          setLastResponse(responseText);
-        }
-        console.log(`[Android APK] Response text: ${responseText.substring(0, 200)}...`);
-      } else {
+      if (!response.ok) {
         console.log(`[Android APK] HTTP error: ${response.status} ${response.statusText}`);
       }
 
-      return response;
+      // Return both the response status and the already-read text
+      return {
+        ok: response.ok,
+        text: responseText,
+        status: response.status
+      };
     } catch (error) {
       const endTime = Date.now();
       const responseTimeMs = endTime - startTime;
@@ -164,13 +171,13 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
       try {
         console.log(`[Android APK] Trying ${strategy.name} (${strategy.endpoint})...`);
         
-        const response = await sendCommand(strategy.endpoint, strategy.timeout);
+        const result = await sendCommand(strategy.endpoint, strategy.timeout);
         
-        if (response.ok) {
+        if (result.ok) {
           console.log(`[Android APK] Success with ${strategy.name}!`);
           return true;
         } else {
-          console.log(`[Android APK] ${strategy.name} failed with status: ${response.status}`);
+          console.log(`[Android APK] ${strategy.name} failed with status: ${result.status}`);
         }
       } catch (error) {
         console.log(`[Android APK] ${strategy.name} failed:`, error);
