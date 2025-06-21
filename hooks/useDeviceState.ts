@@ -72,11 +72,14 @@ export function useDeviceState() {
     if (!isConnected) return;
 
     try {
+      console.log('Fetching device status...');
       const result = await sendCommand('/status', 8000);
       
-      if (result.ok) {
+      if (result.ok && result.text) {
         console.log('Device status received:', result.text);
         parseDeviceStatus(result.text);
+      } else {
+        console.log('Device status request failed:', result.status);
       }
     } catch (error) {
       console.log('Failed to fetch device status:', error);
@@ -85,6 +88,7 @@ export function useDeviceState() {
 
   const parseDeviceStatus = useCallback((statusText: string) => {
     try {
+      console.log('Parsing device status:', statusText);
       const lines = statusText.split('\n');
       const updates: Partial<DeviceState> = {};
 
@@ -168,6 +172,8 @@ export function useDeviceState() {
     const sessionStartTime = new Date().toLocaleString();
     
     console.log('Starting session...');
+    
+    // Update local state first
     setDeviceState(prev => {
       const newState = { ...prev, sessionActive: true };
       console.log('Session started - device state:', newState);
@@ -190,7 +196,9 @@ export function useDeviceState() {
       if (result.ok) {
         addSessionEvent('Connected to device successfully');
         // Fetch updated status after starting session
-        setTimeout(fetchDeviceStatus, 1000);
+        setTimeout(() => {
+          fetchDeviceStatus();
+        }, 2000);
       }
     } catch (error) {
       addSessionEvent('Device connection lost - continuing offline');
@@ -305,7 +313,9 @@ export function useDeviceState() {
     
     // After successful connection, fetch device status to sync session state
     if (success) {
-      setTimeout(fetchDeviceStatus, 1000);
+      setTimeout(() => {
+        fetchDeviceStatus();
+      }, 2000);
     }
     
     return success;
@@ -347,7 +357,12 @@ export function useDeviceState() {
 
     // Fetch device status periodically if connected
     if (isConnected) {
-      statusInterval = setInterval(fetchDeviceStatus, 20000);
+      statusInterval = setInterval(() => {
+        if (isComponentMounted) {
+          fetchDeviceStatus();
+        }
+      }, 15000); // Check every 15 seconds
+      
       // Initial fetch after a short delay
       setTimeout(() => {
         if (isComponentMounted) {
@@ -367,6 +382,16 @@ export function useDeviceState() {
   useEffect(() => {
     console.log('Device state changed:', deviceState);
   }, [deviceState]);
+
+  // Initial status fetch when connection is established
+  useEffect(() => {
+    if (isConnected && connectionStatus === 'connected') {
+      console.log('Connection established, fetching initial device status...');
+      setTimeout(() => {
+        fetchDeviceStatus();
+      }, 1000);
+    }
+  }, [isConnected, connectionStatus, fetchDeviceStatus]);
 
   return {
     deviceState,

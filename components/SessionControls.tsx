@@ -21,10 +21,10 @@ export function SessionControls({ sessionActive, onStartSession, onEndSession, i
           text: 'Start Session', 
           onPress: () => {
             onStartSession();
-            // Navigate to dashboard after starting session
+            // Navigate to dashboard after starting session with a delay
             setTimeout(() => {
               router.push('/(tabs)');
-            }, 500);
+            }, 1000);
           }
         },
       ]
