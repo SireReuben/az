@@ -12,8 +12,8 @@ interface AndroidArduinoConnection {
 }
 
 const ARDUINO_IP = '192.168.4.1';
-const DEFAULT_TIMEOUT = 20000; // Increased to 20 seconds for Android APK
-const RETRY_DELAY = 3000; // 3 seconds between retries
+const DEFAULT_TIMEOUT = 30000; // Increased to 30 seconds for APK builds
+const RETRY_DELAY = 5000; // 5 seconds between retries
 
 export function useAndroidArduinoConnection(): AndroidArduinoConnection {
   const [isConnected, setIsConnected] = useState(false);
@@ -24,115 +24,126 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
   
   const isComponentMounted = useRef(true);
 
-  // Enhanced command sending with Android APK specific optimizations
+  // APK-optimized command sending with multiple fallback strategies
   const sendCommand = useCallback(async (endpoint: string, timeout: number = DEFAULT_TIMEOUT): Promise<{ ok: boolean; text: string; status: number }> => {
     const startTime = Date.now();
     
     try {
-      console.log(`[Android APK] Sending command: ${endpoint} with ${timeout}ms timeout`);
+      console.log(`[APK] Sending command: ${endpoint} with ${timeout}ms timeout`);
       
-      // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log(`[Android APK] Command timeout after ${timeout}ms`);
-        controller.abort();
-      }, timeout);
+      // Strategy 1: Try with fetch and AbortController
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          console.log(`[APK] Aborting request after ${timeout}ms`);
+          controller.abort();
+        }, timeout);
 
-      // Android APK specific headers to ensure compatibility
-      const headers: Record<string, string> = {
-        'Accept': 'text/plain, */*',
-        'Accept-Encoding': 'identity', // Disable compression for Arduino
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'Connection': 'close', // Force connection close for Android
-      };
+        // APK-specific headers for better Arduino compatibility
+        const headers: Record<string, string> = {
+          'Accept': 'text/plain, */*',
+          'Accept-Encoding': 'identity',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Connection': 'close',
+          'User-Agent': 'AEROSPIN-APK/1.0.0',
+        };
 
-      // Add Android-specific headers for better compatibility
-      if (Platform.OS === 'android') {
-        headers['User-Agent'] = 'AEROSPIN-Android-APK/1.0.0';
-        headers['X-Requested-With'] = 'com.aerospin.control';
-        headers['X-Android-APK'] = 'true';
-      }
-
-      // Use XMLHttpRequest for Android APK if available (better compatibility)
-      let response: Response;
-      
-      if (Platform.OS === 'android' && typeof XMLHttpRequest !== 'undefined') {
-        // Use XMLHttpRequest for Android APK
-        response = await new Promise<Response>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.timeout = timeout;
-          xhr.open('GET', `http://${ARDUINO_IP}${endpoint}`, true);
-          
-          // Set headers
-          Object.entries(headers).forEach(([key, value]) => {
-            xhr.setRequestHeader(key, value);
-          });
-          
-          xhr.onload = () => {
-            const response = new Response(xhr.responseText, {
-              status: xhr.status,
-              statusText: xhr.statusText,
-              headers: new Headers(),
-            });
-            resolve(response);
-          };
-          
-          xhr.onerror = () => reject(new Error('Network error'));
-          xhr.ontimeout = () => reject(new Error('Request timeout'));
-          
-          xhr.send();
-        });
-      } else {
-        // Use fetch for other platforms
-        response = await fetch(`http://${ARDUINO_IP}${endpoint}`, {
+        const response = await fetch(`http://${ARDUINO_IP}${endpoint}`, {
           method: 'GET',
           signal: controller.signal,
           headers,
-          // Additional fetch options for Android
           mode: 'cors',
           credentials: 'omit',
           redirect: 'follow',
         });
-      }
 
-      clearTimeout(timeoutId);
-      
-      const endTime = Date.now();
-      const responseTimeMs = endTime - startTime;
-      
-      console.log(`[Android APK] Response received in ${responseTimeMs}ms, status: ${response.status}`);
-      
-      // Read the response text once here
-      const responseText = response.ok ? await response.text() : '';
-      
-      if (isComponentMounted.current) {
-        setResponseTime(responseTimeMs);
-        setConnectionStatus(response.ok ? 'connected' : 'failed');
-        setIsConnected(response.ok);
+        clearTimeout(timeoutId);
         
-        if (response.ok && responseText) {
-          setLastResponse(responseText);
-          console.log(`[Android APK] Response text: ${responseText.substring(0, 200)}...`);
+        const endTime = Date.now();
+        const responseTimeMs = endTime - startTime;
+        
+        console.log(`[APK] Strategy 1 response: ${response.status} in ${responseTimeMs}ms`);
+        
+        const responseText = response.ok ? await response.text() : '';
+        
+        if (isComponentMounted.current) {
+          setResponseTime(responseTimeMs);
+          setConnectionStatus(response.ok ? 'connected' : 'failed');
+          setIsConnected(response.ok);
+          
+          if (response.ok && responseText) {
+            setLastResponse(responseText);
+          }
         }
-      }
 
-      if (!response.ok) {
-        console.log(`[Android APK] HTTP error: ${response.status} ${response.statusText}`);
+        return {
+          ok: response.ok,
+          text: responseText,
+          status: response.status
+        };
+      } catch (fetchError) {
+        console.log('[APK] Strategy 1 (fetch) failed:', fetchError);
+        
+        // Strategy 2: Try with XMLHttpRequest for APK compatibility
+        if (Platform.OS === 'android' && typeof XMLHttpRequest !== 'undefined') {
+          console.log('[APK] Trying Strategy 2 (XMLHttpRequest)...');
+          
+          return new Promise<{ ok: boolean; text: string; status: number }>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.timeout = timeout;
+            xhr.open('GET', `http://${ARDUINO_IP}${endpoint}`, true);
+            
+            // Set APK-specific headers
+            xhr.setRequestHeader('Accept', 'text/plain, */*');
+            xhr.setRequestHeader('Cache-Control', 'no-cache');
+            xhr.setRequestHeader('User-Agent', 'AEROSPIN-APK/1.0.0');
+            
+            xhr.onload = () => {
+              const endTime = Date.now();
+              const responseTimeMs = endTime - startTime;
+              
+              console.log(`[APK] Strategy 2 response: ${xhr.status} in ${responseTimeMs}ms`);
+              
+              if (isComponentMounted.current) {
+                setResponseTime(responseTimeMs);
+                setConnectionStatus(xhr.status === 200 ? 'connected' : 'failed');
+                setIsConnected(xhr.status === 200);
+                
+                if (xhr.status === 200 && xhr.responseText) {
+                  setLastResponse(xhr.responseText);
+                }
+              }
+              
+              resolve({
+                ok: xhr.status === 200,
+                text: xhr.responseText || '',
+                status: xhr.status
+              });
+            };
+            
+            xhr.onerror = () => {
+              console.log('[APK] Strategy 2 (XMLHttpRequest) failed');
+              reject(new Error('XMLHttpRequest failed'));
+            };
+            
+            xhr.ontimeout = () => {
+              console.log('[APK] Strategy 2 timeout');
+              reject(new Error('XMLHttpRequest timeout'));
+            };
+            
+            xhr.send();
+          });
+        }
+        
+        throw fetchError;
       }
-
-      // Return both the response status and the already-read text
-      return {
-        ok: response.ok,
-        text: responseText,
-        status: response.status
-      };
     } catch (error) {
       const endTime = Date.now();
       const responseTimeMs = endTime - startTime;
       
-      console.log(`[Android APK] Command failed after ${responseTimeMs}ms:`, error);
+      console.log(`[APK] All strategies failed after ${responseTimeMs}ms:`, error);
       
       if (isComponentMounted.current) {
         setResponseTime(responseTimeMs);
@@ -153,65 +164,68 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
     }
   }, []);
 
-  // Enhanced connection test with multiple strategies
+  // Enhanced connection test with APK-specific optimizations
   const testConnection = useCallback(async (): Promise<boolean> => {
-    console.log('[Android APK] Starting comprehensive connection test...');
+    console.log('[APK] Starting enhanced connection test...');
     
     setConnectionStatus('checking');
     setConnectionAttempts(prev => prev + 1);
     
+    // APK-optimized connection strategies with longer timeouts
     const strategies = [
-      { endpoint: '/ping', timeout: 15000, name: 'Standard Ping' },
-      { endpoint: '/health', timeout: 20000, name: 'Health Check' },
-      { endpoint: '/status', timeout: 25000, name: 'Status Check' },
-      { endpoint: '/', timeout: 30000, name: 'Root Page' },
+      { endpoint: '/ping', timeout: 25000, name: 'Enhanced Ping' },
+      { endpoint: '/status', timeout: 30000, name: 'Status Check' },
+      { endpoint: '/health', timeout: 35000, name: 'Health Check' },
+      { endpoint: '/', timeout: 40000, name: 'Root Page' },
     ];
     
-    for (const strategy of strategies) {
+    for (let i = 0; i < strategies.length; i++) {
+      const strategy = strategies[i];
+      
       try {
-        console.log(`[Android APK] Trying ${strategy.name} (${strategy.endpoint})...`);
+        console.log(`[APK] Attempt ${i + 1}/${strategies.length}: ${strategy.name} (${strategy.endpoint})`);
         
         const result = await sendCommand(strategy.endpoint, strategy.timeout);
         
         if (result.ok) {
-          console.log(`[Android APK] Success with ${strategy.name}!`);
+          console.log(`[APK] SUCCESS with ${strategy.name}! Response length: ${result.text.length}`);
           return true;
         } else {
-          console.log(`[Android APK] ${strategy.name} failed with status: ${result.status}`);
+          console.log(`[APK] ${strategy.name} failed with status: ${result.status}`);
         }
       } catch (error) {
-        console.log(`[Android APK] ${strategy.name} failed:`, error);
-        
-        // Wait between attempts
-        if (strategy !== strategies[strategies.length - 1]) {
-          console.log(`[Android APK] Waiting ${RETRY_DELAY}ms before next strategy...`);
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        }
+        console.log(`[APK] ${strategy.name} failed:`, error);
+      }
+      
+      // Wait between attempts (except for the last one)
+      if (i < strategies.length - 1) {
+        console.log(`[APK] Waiting ${RETRY_DELAY}ms before next attempt...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
       }
     }
     
-    console.log('[Android APK] All connection strategies failed');
+    console.log('[APK] All connection attempts failed');
     return false;
   }, [sendCommand]);
 
-  // Periodic connection monitoring
+  // APK-specific monitoring with longer intervals
   useEffect(() => {
     let monitoringInterval: NodeJS.Timeout;
     
     const startMonitoring = async () => {
-      // Initial test after delay
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Initial test with longer delay for APK
+      await new Promise(resolve => setTimeout(resolve, 8000));
       
       if (isComponentMounted.current) {
         await testConnection();
         
-        // Set up periodic monitoring
+        // Set up periodic monitoring with longer intervals for APK
         monitoringInterval = setInterval(async () => {
           if (isComponentMounted.current && !isConnected) {
-            console.log('[Android APK] Periodic connection check...');
+            console.log('[APK] Periodic connection check...');
             await testConnection();
           }
-        }, 30000); // Check every 30 seconds if not connected
+        }, 45000); // Check every 45 seconds if not connected
       }
     };
 

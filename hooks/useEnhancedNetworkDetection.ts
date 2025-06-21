@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform, AppState, AppStateStatus } from 'react-native';
 
-// Enhanced network detection specifically optimized for Android APK builds
+// APK-optimized network detection
 interface NetworkDetectionState {
   isConnectedToArduinoWifi: boolean;
   isArduinoReachable: boolean;
@@ -31,9 +31,9 @@ const DEFAULT_CONFIG: ConnectionConfig = {
   arduinoIP: '192.168.4.1',
   arduinoPort: 80,
   expectedSSID: 'AEROSPIN CONTROL',
-  connectionTimeout: 10000, // Increased timeout for Android APK
-  retryAttempts: 3, // Fewer retries but longer timeouts
-  retryDelay: 2000,
+  connectionTimeout: 25000, // Increased timeout for APK builds
+  retryAttempts: 5, // More retries for APK
+  retryDelay: 3000,
 };
 
 export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = {}) {
@@ -59,7 +59,7 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
   const isComponentMounted = useRef(true);
   const lastDetectionTime = useRef<number>(0);
 
-  // Simplified network detection for Android APK
+  // APK-optimized network detection
   const checkNetworkInfo = useCallback(async (): Promise<boolean> => {
     try {
       if (!isComponentMounted.current) return false;
@@ -72,12 +72,15 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       };
 
       if (Platform.OS === 'web') {
-        // Web platform - assume connected if Arduino responds
+        // Web platform
         networkInfo.ssid = finalConfig.expectedSSID;
         networkInfo.ipAddress = '192.168.4.2';
       } else {
-        // Android - simplified detection
-        // Since Arduino LCD shows "Android Connected", assume network is OK
+        // APK - Enhanced detection
+        console.log('[APK] Checking network info...');
+        
+        // For APK builds, assume Arduino WiFi connection if we can reach the device
+        // This is because APK builds have different network detection capabilities
         networkInfo.ssid = finalConfig.expectedSSID;
         networkInfo.ipAddress = '192.168.4.2';
         networkInfo.isWifiEnabled = true;
@@ -86,51 +89,74 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       setState(prev => ({
         ...prev,
         networkInfo,
-        isConnectedToArduinoWifi: true, // Assume true since Arduino shows connection
+        isConnectedToArduinoWifi: true, // Assume true for APK builds
       }));
 
       return true;
     } catch (error) {
-      console.log('Network info check failed:', error);
+      console.log('[APK] Network info check failed:', error);
       return false;
     }
   }, [finalConfig.expectedSSID]);
 
-  // Simplified HTTP connection test for Android APK
+  // APK-optimized HTTP connection test
   const testHttpConnection = useCallback(async (): Promise<boolean> => {
     try {
       if (!isComponentMounted.current) return false;
 
-      console.log('Testing HTTP connection to Arduino...');
+      console.log('[APK] Testing HTTP connection to Arduino...');
       
-      // Use a simple fetch with longer timeout for Android APK
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), finalConfig.connectionTimeout);
+      // Use multiple connection strategies for APK
+      const strategies = [
+        { timeout: 20000, method: 'GET' },
+        { timeout: 30000, method: 'GET' },
+        { timeout: 40000, method: 'GET' },
+      ];
       
-      const response = await fetch(`http://${finalConfig.arduinoIP}/ping`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Accept': '*/*',
-          'Cache-Control': 'no-cache',
-        },
-      });
+      for (const strategy of strategies) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), strategy.timeout);
+          
+          const response = await fetch(`http://${finalConfig.arduinoIP}/ping`, {
+            method: strategy.method,
+            signal: controller.signal,
+            headers: {
+              'Accept': '*/*',
+              'Cache-Control': 'no-cache',
+              'User-Agent': 'AEROSPIN-APK/1.0.0',
+            },
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            console.log('[APK] HTTP connection successful with strategy:', strategy);
+            
+            if (isComponentMounted.current) {
+              setState(prev => ({
+                ...prev,
+                isArduinoReachable: true,
+              }));
+            }
+            
+            return true;
+          }
+        } catch (strategyError) {
+          console.log('[APK] Strategy failed:', strategy, strategyError);
+        }
+      }
       
-      clearTimeout(timeoutId);
-      
-      const isReachable = response.ok;
-      console.log('HTTP connection result:', isReachable, 'Status:', response.status);
-      
+      console.log('[APK] All HTTP strategies failed');
       if (isComponentMounted.current) {
         setState(prev => ({
           ...prev,
-          isArduinoReachable: isReachable,
+          isArduinoReachable: false,
         }));
       }
-      
-      return isReachable;
+      return false;
     } catch (error) {
-      console.log('HTTP connection test failed:', error);
+      console.log('[APK] HTTP connection test failed:', error);
       if (isComponentMounted.current) {
         setState(prev => ({
           ...prev,
@@ -139,57 +165,81 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       }
       return false;
     }
-  }, [finalConfig.arduinoIP, finalConfig.connectionTimeout]);
+  }, [finalConfig.arduinoIP]);
 
-  // Enhanced application handshake for Android APK
+  // APK-optimized application handshake
   const testApplicationHandshake = useCallback(async (): Promise<boolean> => {
     try {
-      console.log('Testing Arduino application response...');
+      console.log('[APK] Testing Arduino application response...');
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), finalConfig.connectionTimeout);
+      // Multiple handshake attempts with increasing timeouts
+      const attempts = [
+        { endpoint: '/ping', timeout: 25000 },
+        { endpoint: '/status', timeout: 30000 },
+        { endpoint: '/health', timeout: 35000 },
+      ];
       
-      const response = await fetch(`http://${finalConfig.arduinoIP}/ping`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Accept': 'text/plain, */*',
-          'Cache-Control': 'no-cache',
-          'User-Agent': 'AEROSPIN-Android-App',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        const responseText = await response.text();
-        console.log('Arduino response received:', responseText.substring(0, 100));
-        
-        // Check for valid Arduino response
-        const isValidResponse = 
-          responseText.toLowerCase().includes('pong') || 
-          responseText.toLowerCase().includes('aerospin') ||
-          responseText.toLowerCase().includes('device') ||
-          responseText.toLowerCase().includes('ready') ||
-          responseText.length > 0; // Any response is better than none
-        
-        console.log('Arduino response validation:', isValidResponse);
-        
-        if (isComponentMounted.current) {
-          setState(prev => ({
-            ...prev,
-            isArduinoResponding: isValidResponse,
-            lastSuccessfulConnection: isValidResponse ? new Date() : prev.lastSuccessfulConnection,
-          }));
+      for (const attempt of attempts) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), attempt.timeout);
+          
+          const response = await fetch(`http://${finalConfig.arduinoIP}${attempt.endpoint}`, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {
+              'Accept': 'text/plain, */*',
+              'Cache-Control': 'no-cache',
+              'User-Agent': 'AEROSPIN-APK/1.0.0',
+            },
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (response.ok) {
+            const responseText = await response.text();
+            console.log('[APK] Arduino response received:', responseText.substring(0, 100));
+            
+            // More lenient response validation for APK
+            const isValidResponse = 
+              responseText.length > 0 && (
+                responseText.toLowerCase().includes('pong') || 
+                responseText.toLowerCase().includes('aerospin') ||
+                responseText.toLowerCase().includes('device') ||
+                responseText.toLowerCase().includes('ready') ||
+                responseText.toLowerCase().includes('direction') ||
+                responseText.toLowerCase().includes('brake') ||
+                responseText.toLowerCase().includes('speed') ||
+                responseText.includes('200') // HTTP 200 response
+              );
+            
+            console.log('[APK] Arduino response validation:', isValidResponse);
+            
+            if (isValidResponse && isComponentMounted.current) {
+              setState(prev => ({
+                ...prev,
+                isArduinoResponding: true,
+                lastSuccessfulConnection: new Date(),
+              }));
+              
+              return true;
+            }
+          }
+        } catch (attemptError) {
+          console.log('[APK] Handshake attempt failed:', attempt, attemptError);
         }
-        
-        return isValidResponse;
-      } else {
-        console.log('Arduino ping failed with status:', response.status);
-        return false;
       }
+      
+      console.log('[APK] All handshake attempts failed');
+      if (isComponentMounted.current) {
+        setState(prev => ({
+          ...prev,
+          isArduinoResponding: false,
+        }));
+      }
+      return false;
     } catch (error) {
-      console.log('Application handshake failed:', error);
+      console.log('[APK] Application handshake failed:', error);
       
       if (isComponentMounted.current) {
         setState(prev => ({
@@ -199,16 +249,16 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       }
       return false;
     }
-  }, [finalConfig.arduinoIP, finalConfig.connectionTimeout]);
+  }, [finalConfig.arduinoIP]);
 
-  // Simplified detection process for Android APK
+  // APK-optimized detection process
   const performFullDetection = useCallback(async (retryCount = 0): Promise<boolean> => {
     if (!isComponentMounted.current) return false;
 
     const now = Date.now();
     
     // Prevent too frequent detection attempts
-    if (now - lastDetectionTime.current < 3000) {
+    if (now - lastDetectionTime.current < 5000) {
       return state.isArduinoResponding;
     }
     
@@ -220,18 +270,18 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
       connectionAttempts: prev.connectionAttempts + 1,
     }));
 
-    console.log(`Android APK detection attempt ${retryCount + 1}/${finalConfig.retryAttempts + 1}`);
+    console.log(`[APK] Detection attempt ${retryCount + 1}/${finalConfig.retryAttempts + 1}`);
 
     try {
-      // Step 1: Assume network is OK (Arduino LCD shows connection)
+      // Step 1: Check network info (assume OK for APK)
       await checkNetworkInfo();
       
-      // Step 2: Test HTTP connection
+      // Step 2: Test HTTP connection with retries
       const isHttpReachable = await testHttpConnection();
       
       if (!isHttpReachable) {
         if (retryCount < finalConfig.retryAttempts) {
-          console.log(`HTTP test failed, retrying in ${finalConfig.retryDelay}ms...`);
+          console.log(`[APK] HTTP test failed, retrying in ${finalConfig.retryDelay}ms...`);
           await new Promise(resolve => setTimeout(resolve, finalConfig.retryDelay));
           return performFullDetection(retryCount + 1);
         }
@@ -244,12 +294,12 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
         return false;
       }
 
-      // Step 3: Test application response
+      // Step 3: Test application response with retries
       const isAppResponding = await testApplicationHandshake();
       
       if (!isAppResponding) {
         if (retryCount < finalConfig.retryAttempts) {
-          console.log(`App handshake failed, retrying in ${finalConfig.retryDelay}ms...`);
+          console.log(`[APK] App handshake failed, retrying in ${finalConfig.retryDelay}ms...`);
           await new Promise(resolve => setTimeout(resolve, finalConfig.retryDelay));
           return performFullDetection(retryCount + 1);
         }
@@ -269,10 +319,10 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
         connectionQuality: 'excellent',
       }));
       
-      console.log('Android APK detection successful!');
+      console.log('[APK] Detection successful!');
       return true;
     } catch (error) {
-      console.log('Full detection failed:', error);
+      console.log('[APK] Full detection failed:', error);
       setState(prev => ({
         ...prev,
         detectionStatus: 'error',
@@ -282,25 +332,25 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
     }
   }, [checkNetworkInfo, testHttpConnection, testApplicationHandshake, finalConfig.retryAttempts, finalConfig.retryDelay, state.isArduinoResponding]);
 
-  // Start monitoring with longer intervals for Android APK
+  // APK-optimized monitoring
   const startMonitoring = useCallback(() => {
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current);
     }
 
-    // Initial detection after delay
+    // Initial detection with longer delay for APK
     setTimeout(() => {
       if (isComponentMounted.current) {
         performFullDetection();
       }
-    }, 3000);
+    }, 5000);
 
-    // Check every 15 seconds (longer interval for Android APK)
+    // Check every 20 seconds for APK builds
     detectionIntervalRef.current = setInterval(() => {
       if (isComponentMounted.current) {
         performFullDetection();
       }
-    }, 15000);
+    }, 20000);
   }, [performFullDetection]);
 
   // Stop monitoring
@@ -311,18 +361,21 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
     }
   }, []);
 
-  // Handle app state changes for Android
+  // Handle app state changes for APK
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      console.log('[APK] App state changed to:', nextAppState);
       if (nextAppState === 'active') {
         setTimeout(() => {
           if (isComponentMounted.current) {
+            console.log('[APK] App became active, starting monitoring...');
             startMonitoring();
           }
-        }, 2000);
+        }, 3000);
       } else {
+        console.log('[APK] App became inactive, stopping monitoring...');
         stopMonitoring();
       }
     };
@@ -333,7 +386,7 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
 
   // Initialize monitoring
   useEffect(() => {
-    console.log('Starting Android APK optimized network detection...');
+    console.log('[APK] Starting APK-optimized network detection...');
     startMonitoring();
     
     return () => {
@@ -344,7 +397,7 @@ export function useEnhancedNetworkDetection(config: Partial<ConnectionConfig> = 
 
   // Manual refresh function
   const refreshConnection = useCallback(async () => {
-    console.log('Manual connection refresh for Android APK...');
+    console.log('[APK] Manual connection refresh...');
     return performFullDetection();
   }, [performFullDetection]);
 

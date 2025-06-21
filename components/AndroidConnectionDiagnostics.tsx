@@ -36,13 +36,13 @@ export function AndroidConnectionDiagnostics({
   const getStatusText = () => {
     switch (connectionStatus) {
       case 'checking':
-        return 'Testing Android APK connection...';
+        return 'Testing APK connection...';
       case 'connected':
         return `Connected successfully (${responseTime}ms)`;
       case 'timeout':
-        return 'Connection timeout - Arduino may be overloaded';
+        return 'Connection timeout - Try increasing timeout values';
       case 'failed':
-        return 'HTTP communication failed';
+        return 'HTTP communication failed - Check network security settings';
       default:
         return 'Unknown status';
     }
@@ -63,17 +63,21 @@ export function AndroidConnectionDiagnostics({
 
   const handleAdvancedDiagnostics = () => {
     Alert.alert(
-      'Advanced Diagnostics',
+      'APK Connection Diagnostics',
       `Connection Attempts: ${connectionAttempts}\n` +
       `Response Time: ${responseTime}ms\n` +
       `Status: ${connectionStatus}\n` +
       `Last Response: ${lastResponse ? 'Received' : 'None'}\n\n` +
-      'Troubleshooting Steps:\n' +
-      '1. Arduino LCD shows "Android Connected" ✓\n' +
-      '2. WiFi network layer is working\n' +
-      '3. HTTP layer needs optimization\n' +
-      '4. Try multiple refresh attempts\n' +
-      '5. Restart Arduino if needed',
+      'APK vs Expo Go Differences:\n' +
+      '• APK builds have stricter network security\n' +
+      '• Cleartext HTTP traffic may be blocked\n' +
+      '• Different network stack implementation\n' +
+      '• Requires explicit network security config\n\n' +
+      'Solutions:\n' +
+      '1. Ensure usesCleartextTraffic is enabled\n' +
+      '2. Add network security config\n' +
+      '3. Use longer timeouts for APK builds\n' +
+      '4. Try multiple connection strategies',
       [{ text: 'OK' }]
     );
   };
@@ -89,7 +93,7 @@ export function AndroidConnectionDiagnostics({
           styles.title,
           isTablet && styles.tabletTitle
         ]}>
-          Android APK Diagnostics
+          APK Connection Diagnostics
         </Text>
         <TouchableOpacity
           style={[
@@ -159,7 +163,7 @@ export function AndroidConnectionDiagnostics({
             styles.diagnosticLabel,
             isTablet && styles.tabletDiagnosticLabel
           ]}>
-            HTTP Response:
+            APK HTTP Response:
           </Text>
           <Text style={[
             styles.diagnosticValue,
@@ -183,8 +187,8 @@ export function AndroidConnectionDiagnostics({
             isTablet && styles.tabletDiagnosticValue,
             { 
               color: responseTime === 0 ? '#6b7280' :
-                     responseTime < 2000 ? '#22c55e' : 
-                     responseTime < 5000 ? '#f59e0b' : '#ef4444' 
+                     responseTime < 5000 ? '#22c55e' : 
+                     responseTime < 15000 ? '#f59e0b' : '#ef4444' 
             }
           ]}>
             {responseTime > 0 ? `${responseTime}ms` : 'N/A'}
@@ -256,7 +260,7 @@ export function AndroidConnectionDiagnostics({
             styles.secondaryActionButtonText,
             isTablet && styles.tabletActionButtonText
           ]}>
-            Diagnostics
+            APK Diagnostics
           </Text>
         </TouchableOpacity>
       </View>
@@ -266,17 +270,17 @@ export function AndroidConnectionDiagnostics({
           styles.troubleshootingTitle,
           isTablet && styles.tabletTroubleshootingTitle
         ]}>
-          🔧 Android APK Solution:
+          🔧 APK vs Expo Go Differences:
         </Text>
         <Text style={[
           styles.troubleshootingText,
           isTablet && styles.tabletTroubleshootingText
         ]}>
-          ✓ WiFi connection is working (LCD shows "Android Connected"){'\n'}
-          ✗ HTTP communication layer is failing{'\n'}
-          💡 Solution: Enhanced HTTP handling with multiple retry strategies{'\n'}
-          🔄 Try "Retry Connection" button multiple times{'\n'}
-          ⚡ Arduino may need restart if response time is very high
+          ✓ Expo Go: Uses development network stack{'\n'}
+          ✗ APK Build: Stricter security policies{'\n'}
+          💡 Solution: Enhanced timeouts and multiple connection strategies{'\n'}
+          🔄 APK builds require cleartext traffic permission{'\n'}
+          ⚡ Network security config must allow HTTP to 192.168.4.1
         </Text>
       </View>
     </View>
