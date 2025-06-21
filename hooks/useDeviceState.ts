@@ -15,10 +15,10 @@ interface SessionData {
   events: string[];
 }
 
-// Enhanced connection logic for Android
+// Enhanced connection logic specifically for Android APK
 const ARDUINO_BASE_URL = Platform.OS === 'web' ? '/api' : 'http://192.168.4.1';
-const CONNECTION_TIMEOUT = 5000;
-const MAX_RETRY_ATTEMPTS = 3;
+const CONNECTION_TIMEOUT = 8000; // Increased for Android
+const MAX_RETRY_ATTEMPTS = 5; // More retries for Android
 
 export function useDeviceState() {
   const [deviceState, setDeviceState] = useState<DeviceState>({
@@ -37,7 +37,7 @@ export function useDeviceState() {
   // Store brake position before reset/emergency stop
   const [previousBrakePosition, setPreviousBrakePosition] = useState<string>('None');
 
-  // Use enhanced network detection
+  // Use enhanced network detection with Android-optimized settings
   const {
     isFullyConnected,
     isConnectedToArduinoWifi,
@@ -53,46 +53,105 @@ export function useDeviceState() {
     arduinoIP: '192.168.4.1',
     arduinoPort: 80,
     expectedSSID: 'AEROSPIN CONTROL',
-    connectionTimeout: 5000,
-    retryAttempts: 3,
-    retryDelay: 2000,
+    connectionTimeout: 8000, // Increased timeout for Android
+    retryAttempts: 5, // More retries for Android
+    retryDelay: 1500, // Shorter delay between retries
   });
 
   // Use the enhanced connection status
   const isConnected = isFullyConnected;
 
-  const fetchDeviceStatus = useCallback(async () => {
-    if (!isConnected) return;
-
+  // Enhanced Arduino command sending with better error handling
+  const sendArduinoCommand = useCallback(async (endpoint: string, timeout: number = CONNECTION_TIMEOUT) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+      console.log(`Sending Arduino command: ${endpoint}`);
       
-      const response = await fetch(`${ARDUINO_BASE_URL}/status`, {
+      const response = await fetch(`${ARDUINO_BASE_URL}${endpoint}`, {
+        method: 'GET',
         signal: controller.signal,
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
+          'Accept': 'text/plain, */*',
         },
       });
       
       clearTimeout(timeoutId);
       
+      if (!response.ok) {
+        throw new Error(`Arduino command failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const responseText = await response.text();
+      console.log(`Arduino response for ${endpoint}:`, responseText);
+      
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.log(`Arduino command failed for ${endpoint}:`, error);
+      throw error;
+    }
+  }, []);
+
+  // Enhanced device status fetching
+  const fetchDeviceStatus = useCallback(async () => {
+    if (!isConnected) {
+      console.log('Skipping status fetch - device not connected');
+      return;
+    }
+
+    try {
+      const response = await sendArduinoCommand('/status', 6000);
+      
       if (response.ok) {
         const statusText = await response.text();
+        console.log('Device status received:', statusText);
         parseDeviceStatus(statusText);
       }
     } catch (error) {
       console.log('Failed to fetch device status:', error);
     }
-  }, [isConnected]);
+  }, [isConnected, sendArduinoCommand]);
 
-  // Session data updates with optimized intervals
+  // Parse device status with better error handling
+  const parseDeviceStatus = useCallback((statusText: string) => {
+    try {
+      const lines = statusText.split('\n');
+      const updates: Partial<DeviceState> = {};
+
+      lines.forEach(line => {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('Direction: ')) {
+          updates.direction = trimmedLine.replace('Direction: ', '');
+        } else if (trimmedLine.startsWith('Brake: ')) {
+          updates.brake = trimmedLine.replace('Brake: ', '');
+        } else if (trimmedLine.startsWith('Speed: ')) {
+          updates.speed = parseInt(trimmedLine.replace('Speed: ', '')) || 0;
+        } else if (trimmedLine.startsWith('Session: ')) {
+          updates.sessionActive = trimmedLine.replace('Session: ', '') === 'Active';
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        setDeviceState(prev => ({ ...prev, ...updates }));
+        console.log('Device state updated:', updates);
+      }
+    } catch (error) {
+      console.log('Failed to parse device status:', error);
+    }
+  }, []);
+
+  // Enhanced session data updates
   useEffect(() => {
     if (!deviceState.sessionActive) return;
 
     let durationInterval: NodeJS.Timeout;
     let sessionInterval: NodeJS.Timeout;
+    let statusInterval: NodeJS.Timeout;
     let isComponentMounted = true;
 
     const updateSessionData = () => {
@@ -104,25 +163,16 @@ export function useDeviceState() {
       }));
     };
 
+    // Update duration every second
     durationInterval = setInterval(updateSessionData, 1000);
 
+    // Fetch session log and device status when connected
     if (isConnected) {
       const fetchSessionLog = async () => {
         if (!isComponentMounted) return;
 
         try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-          
-          const response = await fetch(`${ARDUINO_BASE_URL}/getSessionLog`, {
-            signal: controller.signal,
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-            },
-          });
-          
-          clearTimeout(timeoutId);
+          const response = await sendArduinoCommand('/getSessionLog', 5000);
           
           if (response.ok && isComponentMounted) {
             const logData = await response.text();
@@ -138,34 +188,24 @@ export function useDeviceState() {
         }
       };
 
-      sessionInterval = setInterval(fetchSessionLog, 15000);
+      // Fetch session log every 20 seconds
+      sessionInterval = setInterval(fetchSessionLog, 20000);
+      
+      // Fetch device status every 15 seconds
+      statusInterval = setInterval(fetchDeviceStatus, 15000);
+      
+      // Initial fetch
+      setTimeout(fetchSessionLog, 2000);
+      setTimeout(fetchDeviceStatus, 3000);
     }
 
     return () => {
       isComponentMounted = false;
       if (durationInterval) clearInterval(durationInterval);
       if (sessionInterval) clearInterval(sessionInterval);
+      if (statusInterval) clearInterval(statusInterval);
     };
-  }, [deviceState.sessionActive, isConnected]);
-
-  const parseDeviceStatus = useCallback((statusText: string) => {
-    const lines = statusText.split('\n');
-    const updates: Partial<DeviceState> = {};
-
-    lines.forEach(line => {
-      if (line.startsWith('Direction: ')) {
-        updates.direction = line.replace('Direction: ', '');
-      } else if (line.startsWith('Brake: ')) {
-        updates.brake = line.replace('Brake: ', '');
-      } else if (line.startsWith('Speed: ')) {
-        updates.speed = parseInt(line.replace('Speed: ', '')) || 0;
-      } else if (line.startsWith('Session: ')) {
-        updates.sessionActive = line.replace('Session: ', '') === 'Active';
-      }
-    });
-
-    setDeviceState(prev => ({ ...prev, ...updates }));
-  }, []);
+  }, [deviceState.sessionActive, isConnected, sendArduinoCommand, fetchDeviceStatus]);
 
   const addSessionEvent = useCallback((event: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -175,33 +215,8 @@ export function useDeviceState() {
       ...prev,
       events: [...prev.events, eventWithTime],
     }));
-  }, []);
-
-  const sendArduinoCommand = useCallback(async (endpoint: string, timeout: number = CONNECTION_TIMEOUT) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
-    try {
-      const response = await fetch(`${ARDUINO_BASE_URL}${endpoint}`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Arduino command failed: ${response.status}`);
-      }
-      
-      return response;
-    } catch (error) {
-      clearTimeout(timeoutId);
-      throw error;
-    }
+    console.log('Session event added:', eventWithTime);
   }, []);
 
   const updateDeviceState = useCallback(async (updates: Partial<DeviceState>) => {
@@ -230,16 +245,19 @@ export function useDeviceState() {
     try {
       if (updates.direction !== undefined) {
         await sendArduinoCommand(`/direction?state=${updates.direction.toLowerCase()}`);
+        addSessionEvent(`Direction command sent: ${updates.direction}`);
       }
       
       if (updates.brake !== undefined) {
         const action = updates.brake.toLowerCase();
         const state = updates.brake === 'None' ? 'off' : 'on';
         await sendArduinoCommand(`/brake?action=${action}&state=${state}`);
+        addSessionEvent(`Brake command sent: ${action} ${state}`);
       }
       
       if (updates.speed !== undefined) {
         await sendArduinoCommand(`/speed?value=${updates.speed}`);
+        addSessionEvent(`Speed command sent: ${updates.speed}%`);
       }
     } catch (error) {
       console.log('Device update failed, continuing in offline mode:', error);
@@ -318,22 +336,22 @@ export function useDeviceState() {
 
     if (isConnected) {
       try {
-        await sendArduinoCommand('/reset', 8000);
+        await sendArduinoCommand('/reset', 10000); // Longer timeout for reset
         
         // After reset, restore the brake position
         setTimeout(async () => {
           let reconnectAttempts = 0;
-          const maxAttempts = 8;
+          const maxAttempts = 10; // More attempts for Android
           
           const attemptReconnectAndRestore = async () => {
             try {
-              const response = await sendArduinoCommand('/ping', 2000);
+              const response = await sendArduinoCommand('/ping', 3000);
               if (response.ok) {
                 // Restore brake position after successful reconnection
                 if (currentBrake !== 'None') {
                   try {
                     const action = currentBrake.toLowerCase();
-                    await sendArduinoCommand(`/brake?action=${action}&state=on`, 3000);
+                    await sendArduinoCommand(`/brake?action=${action}&state=on`, 5000);
                     addSessionEvent(`Device reset completed - brake position restored to: ${currentBrake}`);
                   } catch (brakeError) {
                     addSessionEvent(`Device reset completed - failed to restore brake position: ${currentBrake}`);
@@ -349,14 +367,14 @@ export function useDeviceState() {
             
             reconnectAttempts++;
             if (reconnectAttempts < maxAttempts) {
-              setTimeout(attemptReconnectAndRestore, 3000);
+              setTimeout(attemptReconnectAndRestore, 4000); // Longer delay for Android
             } else {
               addSessionEvent(`Device reset completed - manual reconnection required. Brake position preserved locally: ${currentBrake}`);
             }
           };
           
           attemptReconnectAndRestore();
-        }, 5000);
+        }, 8000); // Longer initial delay for Arduino restart
         
       } catch (error) {
         console.log('Reset command failed, device may have restarted');
@@ -394,8 +412,9 @@ export function useDeviceState() {
 
     if (isConnected) {
       try {
-        await sendArduinoCommand('/speed?value=0', 1500);
-        await sendArduinoCommand('/direction?state=none', 1500);
+        // Send emergency commands with shorter timeouts for immediate response
+        await sendArduinoCommand('/speed?value=0', 2000);
+        await sendArduinoCommand('/direction?state=none', 2000);
         // Don't change brake position during emergency stop
         
         addSessionEvent(`Emergency stop commands sent to device - brake position maintained: ${currentBrake}`);
