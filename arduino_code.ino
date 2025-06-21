@@ -1000,20 +1000,20 @@ void setup() {
   
   // Handle OPTIONS requests for CORS preflight
   server.onNotFound([]() {
-    if (server.method() == HTTP_OPTIONS) {
-      handleOptions();
-    } else {
-      setCORSHeaders();
-      String message = "File Not Found\n\n";
-      message += "URI: " + server.uri();
-      message += "\nMethod: " + (server.method() == HTTP_GET ? "GET" : "POST");
-      message += "\nArguments: " + String(server.args());
-      for (uint8_t i = 0; i < server.args(); i++) {
-        message += "\n " + server.argName(i) + ": " + server.arg(i);
-      }
-      server.send(404, "text/plain", message);
+  if (server.method() == HTTP_OPTIONS) {
+    handleOptions();
+  } else {
+    setCORSHeaders();
+    String message = "File Not Found\n\n";
+    message += "URI: " + server.uri();
+    message += "\nMethod: " + String(server.method() == HTTP_GET ? "GET" : "POST");
+    message += "\nArguments: " + String(server.args());
+    for (uint8_t i = 0; i < server.args(); i++) {
+      message += "\n " + server.argName(i) + ": " + server.arg(i);
     }
-  });
+    server.send(404, "text/plain", message);
+  }
+});
   
   server.begin();
   Serial.println("HTTP server started successfully");
