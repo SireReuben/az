@@ -6,7 +6,7 @@ import { WifiStatus } from '@/components/WifiStatus';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { NetworkPermissionGuard } from '@/components/NetworkPermissionGuard';
-import { useDeviceState } from '@/hooks/useDeviceState';
+import { useEnhancedNetworkDetection } from '@/hooks/useEnhancedNetworkDetection';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import { useNetworkPermissions } from '@/hooks/useNetworkPermissions';
 
@@ -16,10 +16,20 @@ export default function WelcomeScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
   const [logoAnim] = useState(new Animated.Value(0));
-  const { isConnected } = useDeviceState();
   const { hasLocationPermission, hasNetworkAccess } = useNetworkPermissions();
   const [showManualConnect, setShowManualConnect] = useState(false);
   const { isTablet, isLandscape, screenType } = useDeviceOrientation();
+
+  // Use enhanced network detection
+  const {
+    isFullyConnected,
+    isConnectedToArduinoWifi,
+    isArduinoReachable,
+    isArduinoResponding,
+    connectionQuality,
+    networkInfo,
+    detectionStatus,
+  } = useEnhancedNetworkDetection();
 
   const canProceed = Platform.OS === 'web' || (hasLocationPermission && hasNetworkAccess);
 
@@ -51,23 +61,23 @@ export default function WelcomeScreen() {
     // Show manual connect option after appropriate time based on platform and permissions
     const delay = Platform.OS === 'web' ? 5000 : 8000;
     const timer = setTimeout(() => {
-      if (!isConnected && canProceed) {
+      if (!isFullyConnected && canProceed) {
         setShowManualConnect(true);
       }
     }, delay);
 
     return () => clearTimeout(timer);
-  }, [isConnected, canProceed]);
+  }, [isFullyConnected, canProceed]);
 
   // Auto-navigate when connected
   useEffect(() => {
-    if (isConnected && canProceed) {
+    if (isFullyConnected && canProceed) {
       const timer = setTimeout(() => {
         router.replace('/(tabs)/sessions');
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isConnected, canProceed]);
+  }, [isFullyConnected, canProceed]);
 
   const handleManualConnect = () => {
     if (!canProceed) {
@@ -95,8 +105,46 @@ export default function WelcomeScreen() {
     if (!hasNetworkAccess) {
       return 'Please connect to "AEROSPIN CONTROL" WiFi network';
     }
+
+    // Enhanced connection messages based on detection layers
+    if (!networkInfo.isWifiEnabled) {
+      return 'WiFi is disabled - Please enable WiFi and connect to "AEROSPIN CONTROL"';
+    }
+    
+    if (!isConnectedToArduinoWifi) {
+      return `Currently connected to: ${networkInfo.ssid || 'Unknown'} - Please connect to "AEROSPIN CONTROL"`;
+    }
+    
+    if (!isArduinoReachable) {
+      return 'Connected to AEROSPIN CONTROL but device not reachable - Check device power';
+    }
+    
+    if (!isArduinoResponding) {
+      return 'Device reachable but not responding - Device may be starting up';
+    }
     
     return 'Ensure your device WiFi is connected to "AEROSPIN CONTROL" network';
+  };
+
+  const getDetailedStatus = () => {
+    if (detectionStatus === 'checking') {
+      return 'Checking all connection layers...';
+    }
+    
+    if (isFullyConnected) {
+      return `Fully connected with ${connectionQuality} quality`;
+    }
+    
+    const layers = [];
+    if (isConnectedToArduinoWifi) layers.push('✓ WiFi Network');
+    if (isArduinoReachable) layers.push('✓ TCP Connection');
+    if (isArduinoResponding) layers.push('✓ Application Layer');
+    
+    if (layers.length === 0) {
+      return 'No connection layers established';
+    }
+    
+    return `Partial connection: ${layers.join(', ')}`;
   };
 
   return (
@@ -169,13 +217,32 @@ export default function WelcomeScreen() {
               styles.middle,
               isTablet && isLandscape && styles.tabletLandscapeMiddle
             ]}>
-              <WifiStatus isConnected={isConnected} />
+              <WifiStatus isConnected={isFullyConnected} />
               
-              {!isConnected && !showManualConnect && canProceed && (
+              {/* Enhanced status display */}
+              <View style={styles.statusContainer}>
+                <Text style={[
+                  styles.statusText,
+                  isTablet && styles.tabletStatusText
+                ]}>
+                  {getDetailedStatus()}
+                </Text>
+                
+                {detectionStatus === 'checking' && (
+                  <Text style={[
+                    styles.statusSubtext,
+                    isTablet && styles.tabletStatusSubtext
+                  ]}>
+                    Verifying network, transport, and application layers...
+                  </Text>
+                )}
+              </View>
+              
+              {!isFullyConnected && !showManualConnect && canProceed && (
                 <LoadingSpinner isVisible={true} />
               )}
               
-              {isConnected && (
+              {isFullyConnected && (
                 <Animated.View style={styles.successMessage}>
                   <Text style={[
                     styles.successText,
@@ -192,7 +259,7 @@ export default function WelcomeScreen() {
                 </Animated.View>
               )}
 
-              {!isConnected && showManualConnect && canProceed && (
+              {!isFullyConnected && showManualConnect && canProceed && (
                 <View style={styles.manualConnectContainer}>
                   <Text style={[
                     styles.manualConnectText,
@@ -345,6 +412,31 @@ const styles = StyleSheet.create({
   tabletLandscapeMiddle: {
     flex: 1,
     marginHorizontal: 48,
+  },
+  statusContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  statusText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#e0f2fe',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  tabletStatusText: {
+    fontSize: 16,
+    marginBottom: 6,
+  },
+  statusSubtext: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#b0c4de',
+    textAlign: 'center',
+  },
+  tabletStatusSubtext: {
+    fontSize: 14,
   },
   successMessage: {
     alignItems: 'center',

@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusHeader } from '@/components/StatusHeader';
 import { SessionControls } from '@/components/SessionControls';
 import { SessionReport } from '@/components/SessionReport';
-import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useDeviceState } from '@/hooks/useDeviceState';
@@ -13,7 +13,16 @@ import { useAlerts } from '@/hooks/useAlerts';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 export default function SessionsScreen() {
-  const { deviceState, sessionData, isConnected, startSession, endSession } = useDeviceState();
+  const { 
+    deviceState, 
+    sessionData, 
+    isConnected, 
+    startSession, 
+    endSession,
+    refreshConnection,
+    networkDetection
+  } = useDeviceState();
+  
   const { addSessionAlert } = useAlerts();
   const { isTablet, isLandscape, screenType } = useDeviceOrientation();
 
@@ -25,6 +34,15 @@ export default function SessionsScreen() {
   const handleEndSession = async () => {
     await endSession();
     addSessionAlert('info', 'Session Ended', 'Device control session terminated and data saved');
+  };
+
+  const handleRefreshConnection = async () => {
+    const success = await refreshConnection();
+    if (success) {
+      addSessionAlert('success', 'Connection Refreshed', 'Successfully reconnected to AEROSPIN device');
+    } else {
+      addSessionAlert('warning', 'Connection Failed', 'Unable to establish connection to device');
+    }
   };
 
   const getLayoutStyle = () => {
@@ -52,7 +70,12 @@ export default function SessionsScreen() {
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
-                <ConnectionStatus isConnected={isConnected} />
+                <EnhancedConnectionStatus 
+                  isConnected={isConnected} 
+                  networkDetection={networkDetection}
+                  onRefresh={handleRefreshConnection}
+                  showDetails={!isConnected}
+                />
                 
                 {!isConnected && <OfflineNotice />}
                 
@@ -108,6 +131,88 @@ export default function SessionsScreen() {
               <View style={isTablet && isLandscape ? styles.rightColumn : null}>
                 {deviceState.sessionActive && (
                   <SessionReport sessionData={sessionData} />
+                )}
+                
+                {/* Connection Diagnostics */}
+                {!isConnected && (
+                  <View style={[
+                    styles.diagnosticsCard,
+                    isTablet && styles.tabletDiagnosticsCard
+                  ]}>
+                    <Text style={[
+                      styles.diagnosticsTitle,
+                      isTablet && styles.tabletDiagnosticsTitle
+                    ]}>
+                      Connection Diagnostics
+                    </Text>
+                    
+                    <View style={styles.diagnosticItem}>
+                      <Text style={[
+                        styles.diagnosticLabel,
+                        isTablet && styles.tabletDiagnosticLabel
+                      ]}>
+                        WiFi Network:
+                      </Text>
+                      <Text style={[
+                        styles.diagnosticValue,
+                        isTablet && styles.tabletDiagnosticValue,
+                        { color: networkDetection.isConnectedToArduinoWifi ? '#22c55e' : '#ef4444' }
+                      ]}>
+                        {networkDetection.networkInfo.ssid || 'Not connected'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.diagnosticItem}>
+                      <Text style={[
+                        styles.diagnosticLabel,
+                        isTablet && styles.tabletDiagnosticLabel
+                      ]}>
+                        IP Address:
+                      </Text>
+                      <Text style={[
+                        styles.diagnosticValue,
+                        isTablet && styles.tabletDiagnosticValue
+                      ]}>
+                        {networkDetection.networkInfo.ipAddress || 'Not assigned'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.diagnosticItem}>
+                      <Text style={[
+                        styles.diagnosticLabel,
+                        isTablet && styles.tabletDiagnosticLabel
+                      ]}>
+                        Arduino Reachable:
+                      </Text>
+                      <Text style={[
+                        styles.diagnosticValue,
+                        isTablet && styles.tabletDiagnosticValue,
+                        { color: networkDetection.isArduinoReachable ? '#22c55e' : '#ef4444' }
+                      ]}>
+                        {networkDetection.isArduinoReachable ? 'Yes' : 'No'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.diagnosticItem}>
+                      <Text style={[
+                        styles.diagnosticLabel,
+                        isTablet && styles.tabletDiagnosticLabel
+                      ]}>
+                        Connection Quality:
+                      </Text>
+                      <Text style={[
+                        styles.diagnosticValue,
+                        isTablet && styles.tabletDiagnosticValue,
+                        { 
+                          color: networkDetection.connectionQuality === 'excellent' ? '#22c55e' :
+                                 networkDetection.connectionQuality === 'good' ? '#84cc16' :
+                                 networkDetection.connectionQuality === 'poor' ? '#f59e0b' : '#ef4444'
+                        }
+                      ]}>
+                        {networkDetection.connectionQuality.charAt(0).toUpperCase() + networkDetection.connectionQuality.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
                 )}
               </View>
             </View>
@@ -214,5 +319,52 @@ const styles = StyleSheet.create({
   tabletInfoText: {
     fontSize: 16,
     lineHeight: 24,
+  },
+  diagnosticsCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  tabletDiagnosticsCard: {
+    padding: 24,
+    borderRadius: 20,
+  },
+  diagnosticsTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#374151',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  tabletDiagnosticsTitle: {
+    fontSize: 20,
+    marginBottom: 20,
+  },
+  diagnosticItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  diagnosticLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#6b7280',
+  },
+  tabletDiagnosticLabel: {
+    fontSize: 16,
+  },
+  diagnosticValue: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+  },
+  tabletDiagnosticValue: {
+    fontSize: 16,
   },
 });

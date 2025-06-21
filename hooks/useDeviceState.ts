@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
-import * as Network from 'expo-network';
+import { useEnhancedNetworkDetection } from './useEnhancedNetworkDetection';
 
 interface DeviceState {
   direction: string;
@@ -28,9 +28,6 @@ export function useDeviceState() {
     sessionActive: false,
   });
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionAttempts, setConnectionAttempts] = useState(0);
-  const [lastConnectionCheck, setLastConnectionCheck] = useState<Date | null>(null);
   const [sessionData, setSessionData] = useState<SessionData>({
     startTime: '',
     duration: '',
@@ -40,71 +37,33 @@ export function useDeviceState() {
   // Store brake position before reset/emergency stop
   const [previousBrakePosition, setPreviousBrakePosition] = useState<string>('None');
 
-  // Enhanced connection check with better error handling
-  const checkConnection = useCallback(async (retryCount = 0): Promise<boolean> => {
-    try {
-      // First check if we have network connectivity
-      const networkState = await Network.getNetworkStateAsync();
-      if (!networkState.isConnected) {
-        setIsConnected(false);
-        return false;
-      }
+  // Use enhanced network detection
+  const {
+    isFullyConnected,
+    isConnectedToArduinoWifi,
+    isArduinoReachable,
+    isArduinoResponding,
+    connectionQuality,
+    networkInfo,
+    detectionStatus,
+    connectionAttempts,
+    lastSuccessfulConnection,
+    refreshConnection,
+  } = useEnhancedNetworkDetection({
+    arduinoIP: '192.168.4.1',
+    arduinoPort: 80,
+    expectedSSID: 'AEROSPIN CONTROL',
+    connectionTimeout: 5000,
+    retryAttempts: 3,
+    retryDelay: 2000,
+  });
 
-      // Check if we're on the right network (Android specific)
-      if (Platform.OS === 'android') {
-        try {
-          const ipAddress = await Network.getIpAddressAsync();
-          // Check if we're on the Arduino's network (192.168.4.x)
-          if (!ipAddress.startsWith('192.168.4.')) {
-            console.log('Not connected to AEROSPIN network. Current IP:', ipAddress);
-            setIsConnected(false);
-            return false;
-          }
-        } catch (error) {
-          console.log('Could not determine IP address:', error);
-        }
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
-      
-      const response = await fetch(`${ARDUINO_BASE_URL}/ping`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        setIsConnected(true);
-        setConnectionAttempts(0);
-        setLastConnectionCheck(new Date());
-        await fetchDeviceStatus();
-        return true;
-      } else {
-        throw new Error(`HTTP ${response.status}`);
-      }
-    } catch (error) {
-      console.log(`Connection attempt ${retryCount + 1} failed:`, error);
-      
-      if (retryCount < MAX_RETRY_ATTEMPTS) {
-        // Exponential backoff for retries
-        const delay = Math.pow(2, retryCount) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return checkConnection(retryCount + 1);
-      }
-      
-      setIsConnected(false);
-      setConnectionAttempts(prev => prev + 1);
-      return false;
-    }
-  }, []);
+  // Use the enhanced connection status
+  const isConnected = isFullyConnected;
 
   const fetchDeviceStatus = useCallback(async () => {
+    if (!isConnected) return;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
@@ -126,44 +85,7 @@ export function useDeviceState() {
     } catch (error) {
       console.log('Failed to fetch device status:', error);
     }
-  }, []);
-
-  // Enhanced connection monitoring
-  useEffect(() => {
-    let connectionCheckInterval: NodeJS.Timeout;
-    let isComponentMounted = true;
-
-    const startConnectionMonitoring = async () => {
-      if (!isComponentMounted) return;
-
-      // Initial connection check with delay
-      setTimeout(async () => {
-        if (isComponentMounted) {
-          await checkConnection();
-        }
-      }, 2000);
-
-      // Set up periodic connection monitoring with adaptive intervals
-      setTimeout(() => {
-        if (isComponentMounted) {
-          connectionCheckInterval = setInterval(async () => {
-            if (isComponentMounted) {
-              await checkConnection();
-            }
-          }, isConnected ? 20000 : 10000); // Check less frequently when connected
-        }
-      }, 5000);
-    };
-
-    startConnectionMonitoring();
-
-    return () => {
-      isComponentMounted = false;
-      if (connectionCheckInterval) {
-        clearInterval(connectionCheckInterval);
-      }
-    };
-  }, [checkConnection, isConnected]);
+  }, [isConnected]);
 
   // Session data updates with optimized intervals
   useEffect(() => {
@@ -407,8 +329,6 @@ export function useDeviceState() {
             try {
               const response = await sendArduinoCommand('/ping', 2000);
               if (response.ok) {
-                setIsConnected(true);
-                
                 // Restore brake position after successful reconnection
                 if (currentBrake !== 'None') {
                   try {
@@ -441,7 +361,6 @@ export function useDeviceState() {
       } catch (error) {
         console.log('Reset command failed, device may have restarted');
         addSessionEvent(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
-        setIsConnected(false);
       }
     } else {
       addSessionEvent(`Device reset (offline mode) - brake position preserved: ${currentBrake}`);
@@ -514,7 +433,7 @@ export function useDeviceState() {
     isConnected,
     sessionData,
     connectionAttempts,
-    lastConnectionCheck,
+    lastSuccessfulConnection,
     updateDeviceState,
     startSession,
     endSession,
@@ -522,6 +441,15 @@ export function useDeviceState() {
     emergencyStop,
     releaseBrake,
     previousBrakePosition,
-    checkConnection,
+    refreshConnection,
+    // Enhanced network detection info
+    networkDetection: {
+      isConnectedToArduinoWifi,
+      isArduinoReachable,
+      isArduinoResponding,
+      connectionQuality,
+      networkInfo,
+      detectionStatus,
+    },
   };
 }

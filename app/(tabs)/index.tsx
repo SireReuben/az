@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusHeader } from '@/components/StatusHeader';
 import { DeviceControls } from '@/components/DeviceControls';
-import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { SessionRequiredNotice } from '@/components/SessionRequiredNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useDeviceState } from '@/hooks/useDeviceState';
@@ -18,7 +18,9 @@ export default function DashboardScreen() {
     updateDeviceState, 
     emergencyStop, 
     resetDevice, 
-    releaseBrake 
+    releaseBrake,
+    refreshConnection,
+    networkDetection
   } = useDeviceState();
   
   const { addOperationAlert, addSafetyAlert } = useAlerts();
@@ -55,6 +57,15 @@ export default function DashboardScreen() {
     addOperationAlert('Brake released', 'success');
   };
 
+  const handleRefreshConnection = async () => {
+    const success = await refreshConnection();
+    if (success) {
+      addOperationAlert('Connection refreshed successfully', 'success');
+    } else {
+      addOperationAlert('Connection refresh failed', 'warning');
+    }
+  };
+
   // Show session required notice if no active session
   if (!deviceState.sessionActive) {
     return (
@@ -73,7 +84,12 @@ export default function DashboardScreen() {
           >
             <ResponsiveContainer>
               <StatusHeader />
-              <ConnectionStatus isConnected={isConnected} />
+              <EnhancedConnectionStatus 
+                isConnected={isConnected} 
+                networkDetection={networkDetection}
+                onRefresh={handleRefreshConnection}
+                showDetails={true}
+              />
               <SessionRequiredNotice />
             </ResponsiveContainer>
           </ScrollView>
@@ -107,7 +123,12 @@ export default function DashboardScreen() {
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
-                <ConnectionStatus isConnected={isConnected} />
+                <EnhancedConnectionStatus 
+                  isConnected={isConnected} 
+                  networkDetection={networkDetection}
+                  onRefresh={handleRefreshConnection}
+                  showDetails={!isConnected}
+                />
                 
                 <View style={[
                   styles.statusCard,
