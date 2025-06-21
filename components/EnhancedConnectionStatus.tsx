@@ -1,17 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { 
-  Wifi, 
-  WifiOff, 
-  Circle, 
-  RefreshCw, 
-  CheckCircle, 
-  AlertTriangle, 
-  XCircle,
-  Router,
-  Smartphone,
-  Server
-} from 'lucide-react-native';
+import { Wifi, WifiOff, Circle, RefreshCw, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle, Router, Smartphone, Server } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface NetworkInfo {
