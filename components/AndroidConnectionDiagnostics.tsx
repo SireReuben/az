@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, Zap, Router } from 'lucide-react-native';
+import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, Zap, Router, Settings } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface AndroidConnectionDiagnosticsProps {
@@ -36,13 +36,13 @@ export function AndroidConnectionDiagnostics({
   const getStatusText = () => {
     switch (connectionStatus) {
       case 'checking':
-        return 'Testing APK connection...';
+        return 'Testing APK connection with 60s timeout...';
       case 'connected':
         return `Connected successfully (${responseTime}ms)`;
       case 'timeout':
-        return 'Connection timeout - Try increasing timeout values';
+        return 'Connection timeout - Arduino may be slow to respond';
       case 'failed':
-        return 'HTTP communication failed - Check network security settings';
+        return 'HTTP communication failed - Check network and Arduino';
       default:
         return 'Unknown status';
     }
@@ -63,22 +63,45 @@ export function AndroidConnectionDiagnostics({
 
   const handleAdvancedDiagnostics = () => {
     Alert.alert(
-      'APK Connection Diagnostics',
+      'Android 15 APK Final Fix Diagnostics',
       `Connection Attempts: ${connectionAttempts}\n` +
       `Response Time: ${responseTime}ms\n` +
       `Status: ${connectionStatus}\n` +
       `Last Response: ${lastResponse ? 'Received' : 'None'}\n\n` +
-      'APK vs Expo Go Differences:\n' +
-      '• APK builds have stricter network security\n' +
-      '• Cleartext HTTP traffic may be blocked\n' +
-      '• Different network stack implementation\n' +
-      '• Requires explicit network security config\n\n' +
-      'Solutions:\n' +
-      '1. Ensure usesCleartextTraffic is enabled\n' +
-      '2. Add network security config\n' +
-      '3. Use longer timeouts for APK builds\n' +
-      '4. Try multiple connection strategies',
+      'FINAL FIX STRATEGY:\n' +
+      '• 60-second timeouts for each attempt\n' +
+      '• 3 full rounds of all endpoints\n' +
+      '• Ultra-simple headers for compatibility\n' +
+      '• XMLHttpRequest fallback strategy\n' +
+      '• No-CORS mode as last resort\n\n' +
+      'TROUBLESHOOTING:\n' +
+      '1. Ensure Arduino LCD shows "Android Connected"\n' +
+      '2. Check WiFi: Settings → WiFi → AEROSPIN CONTROL\n' +
+      '3. Verify IP: Should be 192.168.4.2 (your phone)\n' +
+      '4. Arduino IP: Should be 192.168.4.1\n' +
+      '5. Try airplane mode ON/OFF to reset network\n' +
+      '6. Restart Arduino if response time > 30 seconds',
       [{ text: 'OK' }]
+    );
+  };
+
+  const handleNetworkReset = () => {
+    Alert.alert(
+      'Network Reset Instructions',
+      'To reset your network connection:\n\n' +
+      '1. Turn ON Airplane Mode (30 seconds)\n' +
+      '2. Turn OFF Airplane Mode\n' +
+      '3. Reconnect to "AEROSPIN CONTROL"\n' +
+      '4. Wait for "Android Connected" on Arduino LCD\n' +
+      '5. Try connection again\n\n' +
+      'This often resolves Android 15 APK network issues.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open WiFi Settings', onPress: () => {
+          // This would open WiFi settings if we had the capability
+          Alert.alert('Manual Action Required', 'Please manually open WiFi settings and reconnect to "AEROSPIN CONTROL"');
+        }}
+      ]
     );
   };
 
@@ -93,7 +116,7 @@ export function AndroidConnectionDiagnostics({
           styles.title,
           isTablet && styles.tabletTitle
         ]}>
-          APK Connection Diagnostics
+          Android 15 APK Final Fix
         </Text>
         <TouchableOpacity
           style={[
@@ -187,8 +210,8 @@ export function AndroidConnectionDiagnostics({
             isTablet && styles.tabletDiagnosticValue,
             { 
               color: responseTime === 0 ? '#6b7280' :
-                     responseTime < 5000 ? '#22c55e' : 
-                     responseTime < 15000 ? '#f59e0b' : '#ef4444' 
+                     responseTime < 10000 ? '#22c55e' : 
+                     responseTime < 30000 ? '#f59e0b' : '#ef4444' 
             }
           ]}>
             {responseTime > 0 ? `${responseTime}ms` : 'N/A'}
@@ -242,7 +265,7 @@ export function AndroidConnectionDiagnostics({
             styles.actionButtonText,
             isTablet && styles.tabletActionButtonText
           ]}>
-            Retry Connection
+            Retry (60s timeout)
           </Text>
         </TouchableOpacity>
 
@@ -252,35 +275,51 @@ export function AndroidConnectionDiagnostics({
             styles.secondaryActionButton,
             isTablet && styles.tabletActionButton
           ]}
-          onPress={handleAdvancedDiagnostics}
+          onPress={handleNetworkReset}
         >
-          <AlertTriangle size={isTablet ? 16 : 14} color="#374151" />
+          <Settings size={isTablet ? 16 : 14} color="#374151" />
           <Text style={[
             styles.actionButtonText,
             styles.secondaryActionButtonText,
             isTablet && styles.tabletActionButtonText
           ]}>
-            APK Diagnostics
+            Network Reset
           </Text>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity
+        style={[
+          styles.diagnosticsButton,
+          isTablet && styles.tabletDiagnosticsButton
+        ]}
+        onPress={handleAdvancedDiagnostics}
+      >
+        <AlertTriangle size={isTablet ? 16 : 14} color="#f59e0b" />
+        <Text style={[
+          styles.diagnosticsButtonText,
+          isTablet && styles.tabletDiagnosticsButtonText
+        ]}>
+          Advanced Diagnostics & Troubleshooting
+        </Text>
+      </TouchableOpacity>
 
       <View style={styles.troubleshootingSection}>
         <Text style={[
           styles.troubleshootingTitle,
           isTablet && styles.tabletTroubleshootingTitle
         ]}>
-          🔧 APK vs Expo Go Differences:
+          🔧 Android 15 APK Final Fix Strategy:
         </Text>
         <Text style={[
           styles.troubleshootingText,
           isTablet && styles.tabletTroubleshootingText
         ]}>
-          ✓ Expo Go: Uses development network stack{'\n'}
-          ✗ APK Build: Stricter security policies{'\n'}
-          💡 Solution: Enhanced timeouts and multiple connection strategies{'\n'}
-          🔄 APK builds require cleartext traffic permission{'\n'}
-          ⚡ Network security config must allow HTTP to 192.168.4.1
+          ✅ Ultra-aggressive 3-round connection strategy{'\n'}
+          ✅ 60-second timeouts for maximum compatibility{'\n'}
+          ✅ Multiple fallback methods (Fetch + XMLHttpRequest + No-CORS){'\n'}
+          ✅ Minimal headers to avoid Android 15 restrictions{'\n'}
+          ⚡ If still failing: Try airplane mode ON/OFF to reset network stack
         </Text>
       </View>
     </View>
@@ -452,6 +491,33 @@ const styles = StyleSheet.create({
   },
   secondaryActionButtonText: {
     color: '#374151',
+  },
+  diagnosticsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fef3c7',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fbbf24',
+  },
+  tabletDiagnosticsButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  diagnosticsButtonText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#92400e',
+    marginLeft: 6,
+  },
+  tabletDiagnosticsButtonText: {
+    fontSize: 16,
+    marginLeft: 8,
   },
   troubleshootingSection: {
     backgroundColor: '#fffbeb',
