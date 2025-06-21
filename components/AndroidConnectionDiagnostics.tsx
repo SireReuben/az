@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Smartphone, Wifi, Server, RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-react-native';
+import { Smartphone, Wifi, Server, RefreshCw, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface AndroidConnectionDiagnosticsProps {
