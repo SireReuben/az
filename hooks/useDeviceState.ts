@@ -34,6 +34,7 @@ export function useDeviceState() {
   const sessionStartTimeRef = useRef<Date | null>(null);
   const lastUpdateRef = useRef<number>(0);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const eventUpdateTriggerRef = useRef<number>(0);
 
   // Use platform-specific connection hooks
   const androidConnection = useAndroidArduinoConnection();
@@ -109,7 +110,7 @@ export function useDeviceState() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }, []);
 
-  // Enhanced session event logging with immediate state updates
+  // CRITICAL FIX: Enhanced session event logging with immediate state updates and forced re-renders
   const addSessionEvent = useCallback((event: string, details?: any) => {
     if (!deviceState.sessionActive) return;
     
@@ -133,24 +134,30 @@ export function useDeviceState() {
       eventWithDetails += ` - Details: ${JSON.stringify(details)}`;
     }
     
-    // CRITICAL FIX: Update session data immediately and force re-render
+    // CRITICAL FIX: Force immediate state update with trigger increment
+    eventUpdateTriggerRef.current += 1;
+    
     setSessionData(prev => {
       const newEvents = [...prev.events, eventWithDetails];
       const newDuration = calculateDuration();
       
-      console.log('Adding session event:', eventWithDetails);
-      console.log('Total events now:', newEvents.length);
+      console.log('🔄 IMMEDIATE SESSION EVENT UPDATE:', eventWithDetails);
+      console.log('📊 Total events now:', newEvents.length);
+      console.log('🎯 Update trigger:', eventUpdateTriggerRef.current);
       
+      // Return completely new object to force React re-render
       return {
-        ...prev,
-        events: newEvents,
+        startTime: prev.startTime,
         duration: newDuration,
-      };
+        events: newEvents,
+        // Add trigger to force component updates
+        _updateTrigger: eventUpdateTriggerRef.current,
+      } as SessionData;
     });
     
   }, [deviceState.sessionActive, responseTime, calculateDuration]);
 
-  // Optimized device state updates with immediate event logging
+  // CRITICAL FIX: Enhanced device state updates with immediate event logging and forced re-renders
   const updateDeviceState = useCallback(async (updates: Partial<DeviceState>) => {
     const now = Date.now();
     
@@ -169,13 +176,14 @@ export function useDeviceState() {
       setPreviousBrakePosition(deviceState.brake);
     }
 
-    // Update state immediately for responsive UI
+    // CRITICAL FIX: Update state immediately for responsive UI
     setDeviceState(prev => {
       const newState = { ...prev, ...updates };
+      console.log('🎮 DEVICE STATE UPDATED:', newState);
       return newState;
     });
 
-    // CRITICAL FIX: Log events immediately after state update
+    // CRITICAL FIX: Log events IMMEDIATELY after state update with major state change trigger
     if (deviceState.sessionActive) {
       Object.entries(updates).forEach(([key, value]) => {
         if (key !== 'sessionActive') {
@@ -189,7 +197,8 @@ export function useDeviceState() {
               from: previousValue, 
               to: value,
               timestamp: new Date().toISOString(),
-              connectionStatus: isConnected ? 'online' : 'offline'
+              connectionStatus: isConnected ? 'online' : 'offline',
+              majorStateChange: true // CRITICAL: Mark as major state change
             });
           } else if (key === 'brake') {
             addSessionEvent(`🎮 BRAKE changed: ${previousValue} → ${value}`, { 
@@ -198,7 +207,8 @@ export function useDeviceState() {
               from: previousValue, 
               to: value,
               timestamp: new Date().toISOString(),
-              connectionStatus: isConnected ? 'online' : 'offline'
+              connectionStatus: isConnected ? 'online' : 'offline',
+              majorStateChange: true // CRITICAL: Mark as major state change
             });
           } else if (key === 'speed') {
             addSessionEvent(`🎮 SPEED changed: ${previousValue}% → ${value}%`, { 
@@ -207,11 +217,21 @@ export function useDeviceState() {
               from: previousValue, 
               to: value,
               timestamp: new Date().toISOString(),
-              connectionStatus: isConnected ? 'online' : 'offline'
+              connectionStatus: isConnected ? 'online' : 'offline',
+              majorStateChange: true // CRITICAL: Mark as major state change
             });
           }
         }
       });
+
+      // CRITICAL FIX: Force additional state update to trigger all dependent components
+      setTimeout(() => {
+        setSessionData(prev => ({
+          ...prev,
+          duration: calculateDuration(),
+          _updateTrigger: eventUpdateTriggerRef.current,
+        } as SessionData));
+      }, 50);
     }
 
     // Send commands to Arduino if connected
@@ -219,7 +239,8 @@ export function useDeviceState() {
       if (deviceState.sessionActive) {
         addSessionEvent('⚠️ Operating in offline mode - changes saved locally', {
           type: 'system_event',
-          offline: true
+          offline: true,
+          majorStateChange: true
         });
       }
       return;
@@ -236,7 +257,8 @@ export function useDeviceState() {
                 addSessionEvent(`✅ Arduino command sent: Direction set to ${updates.direction}`, {
                   type: 'arduino_command',
                   command: 'direction',
-                  value: updates.direction
+                  value: updates.direction,
+                  majorStateChange: true
                 });
               }
             })
@@ -245,7 +267,8 @@ export function useDeviceState() {
                 addSessionEvent(`❌ Arduino command failed: Direction ${updates.direction}`, {
                   type: 'arduino_error',
                   command: 'direction',
-                  value: updates.direction
+                  value: updates.direction,
+                  majorStateChange: true
                 });
               }
             })
@@ -263,7 +286,8 @@ export function useDeviceState() {
                   type: 'arduino_command',
                   command: 'brake',
                   action: action,
-                  state: state
+                  state: state,
+                  majorStateChange: true
                 });
               }
             })
@@ -273,7 +297,8 @@ export function useDeviceState() {
                   type: 'arduino_error',
                   command: 'brake',
                   action: action,
-                  state: state
+                  state: state,
+                  majorStateChange: true
                 });
               }
             })
@@ -288,7 +313,8 @@ export function useDeviceState() {
                 addSessionEvent(`✅ Arduino command sent: Speed set to ${updates.speed}%`, {
                   type: 'arduino_command',
                   command: 'speed',
-                  value: updates.speed
+                  value: updates.speed,
+                  majorStateChange: true
                 });
               }
             })
@@ -297,7 +323,8 @@ export function useDeviceState() {
                 addSessionEvent(`❌ Arduino command failed: Speed ${updates.speed}%`, {
                   type: 'arduino_error',
                   command: 'speed',
-                  value: updates.speed
+                  value: updates.speed,
+                  majorStateChange: true
                 });
               }
             })
@@ -312,11 +339,12 @@ export function useDeviceState() {
       if (deviceState.sessionActive) {
         addSessionEvent('❌ Device communication lost - operating offline', { 
           type: 'system_error',
-          error: error.message 
+          error: error.message,
+          majorStateChange: true
         });
       }
     }
-  }, [deviceState, isConnected, sendCommand, addSessionEvent]);
+  }, [deviceState, isConnected, sendCommand, addSessionEvent, calculateDuration]);
 
   const fetchDeviceStatus = useCallback(async () => {
     if (!isConnected) return;
@@ -381,7 +409,7 @@ export function useDeviceState() {
       events: initialEvents,
     });
 
-    // Start the duration timer
+    // CRITICAL FIX: Start the duration timer with forced updates
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
     }
@@ -389,10 +417,13 @@ export function useDeviceState() {
     durationIntervalRef.current = setInterval(() => {
       if (sessionStartTimeRef.current) {
         const newDuration = calculateDuration();
+        eventUpdateTriggerRef.current += 1;
+        
         setSessionData(prev => ({
           ...prev,
           duration: newDuration,
-        }));
+          _updateTrigger: eventUpdateTriggerRef.current,
+        } as SessionData));
       }
     }, 1000);
 
@@ -401,7 +432,8 @@ export function useDeviceState() {
       setTimeout(() => {
         addSessionEvent('⚠️ Operating in offline mode - all controls will be logged locally', {
           type: 'system_event',
-          offline: true
+          offline: true,
+          majorStateChange: true
         });
       }, 100);
       return;
@@ -413,7 +445,8 @@ export function useDeviceState() {
         setTimeout(() => {
           addSessionEvent('✅ Connected to Arduino device successfully', {
             type: 'system_event',
-            arduino_connected: true
+            arduino_connected: true,
+            majorStateChange: true
           });
           // Fetch updated status after starting session
           fetchDeviceStatus();
@@ -423,7 +456,8 @@ export function useDeviceState() {
       setTimeout(() => {
         addSessionEvent('⚠️ Device connection lost - continuing offline', { 
           type: 'system_error',
-          error: error.message 
+          error: error.message,
+          majorStateChange: true
         });
       }, 100);
     }
@@ -448,19 +482,23 @@ export function useDeviceState() {
     // Add final session events
     addSessionEvent(`🏁 SESSION ENDED at ${sessionEndTime.toLocaleString()}`, {
       type: 'session_event',
-      action: 'end'
+      action: 'end',
+      majorStateChange: true
     });
     addSessionEvent(`⏱️ Total session duration: ${durationStr}`, {
       type: 'session_summary',
-      duration: durationStr
+      duration: durationStr,
+      majorStateChange: true
     });
     addSessionEvent(`📊 Total events logged: ${sessionData.events.length + 2}`, {
       type: 'session_summary',
-      event_count: sessionData.events.length + 2
+      event_count: sessionData.events.length + 2,
+      majorStateChange: true
     });
     addSessionEvent(`🔒 Brake position reset to None (session end procedure)`, {
       type: 'safety_event',
-      brake_reset: true
+      brake_reset: true,
+      majorStateChange: true
     });
 
     if (isConnected) {
@@ -469,13 +507,15 @@ export function useDeviceState() {
         if (result.ok) {
           addSessionEvent('💾 Session data saved to Arduino device', {
             type: 'system_event',
-            data_saved: true
+            data_saved: true,
+            majorStateChange: true
           });
         }
       } catch (error) {
         addSessionEvent('💾 Session ended offline - data saved locally only', {
           type: 'system_event',
-          offline_save: true
+          offline_save: true,
+          majorStateChange: true
         });
       }
     }
@@ -502,15 +542,18 @@ export function useDeviceState() {
       addSessionEvent(`🚨 DEVICE RESET initiated - preserving brake position: ${currentBrake}`, {
         type: 'emergency_event',
         action: 'reset',
-        brake_preserved: currentBrake
+        brake_preserved: currentBrake,
+        majorStateChange: true
       });
       addSessionEvent(`⚠️ Reset operation: All controls stopped, device restarting`, {
         type: 'emergency_event',
-        action: 'reset_details'
+        action: 'reset_details',
+        majorStateChange: true
       });
       addSessionEvent(`🛡️ Safety protocol: Brake position maintained during reset`, {
         type: 'safety_event',
-        brake_maintained: true
+        brake_maintained: true,
+        majorStateChange: true
       });
     }
 
@@ -546,24 +589,28 @@ export function useDeviceState() {
     const currentBrake = deviceState.brake;
     setPreviousBrakePosition(currentBrake);
 
-    // Log emergency stop operation in session IMMEDIATELY
+    // CRITICAL FIX: Log emergency stop operation in session IMMEDIATELY with major state changes
     if (deviceState.sessionActive) {
       addSessionEvent(`🚨 EMERGENCY STOP ACTIVATED`, {
         type: 'emergency_event',
         action: 'emergency_stop',
-        critical: true
+        critical: true,
+        majorStateChange: true
       });
       addSessionEvent(`⛔ Emergency action: All motor operations halted immediately`, {
         type: 'emergency_event',
-        action: 'motor_halt'
+        action: 'motor_halt',
+        majorStateChange: true
       });
       addSessionEvent(`🛡️ Safety protocol: Brake position preserved (${currentBrake})`, {
         type: 'safety_event',
-        brake_preserved: currentBrake
+        brake_preserved: currentBrake,
+        majorStateChange: true
       });
       addSessionEvent(`⏰ Emergency stop time: ${new Date().toLocaleTimeString()}`, {
         type: 'emergency_event',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        majorStateChange: true
       });
     }
 
@@ -585,22 +632,26 @@ export function useDeviceState() {
         if (deviceState.sessionActive) {
           addSessionEvent(`✅ Emergency commands sent to Arduino device successfully`, {
             type: 'emergency_event',
-            arduino_response: 'success'
+            arduino_response: 'success',
+            majorStateChange: true
           });
           addSessionEvent(`📡 Device response: Speed set to 0%, Direction set to None`, {
             type: 'emergency_event',
-            device_confirmation: true
+            device_confirmation: true,
+            majorStateChange: true
           });
         }
       } catch (error) {
         if (deviceState.sessionActive) {
           addSessionEvent(`⚠️ Emergency stop - device communication failed, local stop applied`, {
             type: 'emergency_event',
-            offline_emergency: true
+            offline_emergency: true,
+            majorStateChange: true
           });
           addSessionEvent(`🔒 Offline emergency protocol: Local controls stopped`, {
             type: 'safety_event',
-            offline_protocol: true
+            offline_protocol: true,
+            majorStateChange: true
           });
         }
       }
@@ -608,11 +659,13 @@ export function useDeviceState() {
       if (deviceState.sessionActive) {
         addSessionEvent(`🔒 Emergency stop applied in offline mode`, {
           type: 'emergency_event',
-          offline_mode: true
+          offline_mode: true,
+          majorStateChange: true
         });
         addSessionEvent(`🛡️ Offline emergency protocol: All local controls stopped`, {
           type: 'safety_event',
-          offline_emergency: true
+          offline_emergency: true,
+          majorStateChange: true
         });
       }
     }
@@ -623,12 +676,14 @@ export function useDeviceState() {
     if (deviceState.sessionActive) {
       addSessionEvent(`🎮 BRAKE RELEASE operation initiated`, {
         type: 'control_operation',
-        action: 'brake_release'
+        action: 'brake_release',
+        majorStateChange: true
       });
       addSessionEvent(`🔓 Brake operation: Releasing from ${deviceState.brake} to None position`, {
         type: 'control_operation',
         brake_from: deviceState.brake,
-        brake_to: 'None'
+        brake_to: 'None',
+        majorStateChange: true
       });
     }
 
@@ -637,7 +692,8 @@ export function useDeviceState() {
     if (deviceState.sessionActive) {
       addSessionEvent('✅ Brake release operation completed successfully', {
         type: 'control_operation',
-        action: 'brake_release_complete'
+        action: 'brake_release_complete',
+        majorStateChange: true
       });
     }
   }, [updateDeviceState, deviceState.sessionActive, deviceState.brake, addSessionEvent]);

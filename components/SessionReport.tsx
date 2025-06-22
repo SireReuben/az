@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Platform } from 'react-native';
 import { FileText, Download, Share2, Clock, Activity, Zap, TriangleAlert as AlertTriangle, Settings, Shield } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
@@ -7,6 +7,7 @@ interface SessionData {
   startTime: string;
   duration: string;
   events: string[];
+  _updateTrigger?: number; // Internal trigger for forcing updates
 }
 
 interface SessionReportProps {
@@ -16,19 +17,58 @@ interface SessionReportProps {
 export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
   const [forceUpdate, setForceUpdate] = useState(0);
+  const [lastEventCount, setLastEventCount] = useState(0);
 
-  // Force re-render whenever sessionData changes - this is critical for real-time updates
+  // CRITICAL FIX: Multiple triggers for real-time updates
   useEffect(() => {
-    console.log('SessionReport: Events updated, count:', sessionData.events.length);
+    console.log('🔄 SessionReport: Events updated, count:', sessionData.events.length);
+    console.log('🎯 SessionReport: Duration:', sessionData.duration);
+    console.log('📊 SessionReport: Update trigger:', (sessionData as any)._updateTrigger);
+    
+    // Force re-render on any change
     setForceUpdate(prev => prev + 1);
-  }, [sessionData.events.length, sessionData.duration, sessionData.startTime]);
+    setLastEventCount(sessionData.events.length);
+  }, [
+    sessionData.events.length, 
+    sessionData.duration, 
+    sessionData.startTime,
+    (sessionData as any)._updateTrigger // Internal trigger from useDeviceState
+  ]);
 
-  // Enhanced session statistics with real-time updates matching actual event patterns
+  // CRITICAL FIX: Additional trigger for event content changes
+  useEffect(() => {
+    if (sessionData.events.length > 0) {
+      const latestEvent = sessionData.events[sessionData.events.length - 1];
+      console.log('🆕 SessionReport: Latest event:', latestEvent);
+      setForceUpdate(prev => prev + 1);
+    }
+  }, [sessionData.events]);
+
+  // CRITICAL FIX: Force update every second during active sessions
+  useEffect(() => {
+    let updateInterval: NodeJS.Timeout;
+    
+    if (sessionData.events.length > 0 && sessionData.duration !== '00:00:00') {
+      updateInterval = setInterval(() => {
+        console.log('⏰ SessionReport: Periodic update trigger');
+        setForceUpdate(prev => prev + 1);
+      }, 1000);
+    }
+
+    return () => {
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+    };
+  }, [sessionData.events.length, sessionData.duration]);
+
+  // Enhanced session statistics with real-time updates and comprehensive pattern matching
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
-    console.log('SessionReport: Calculating stats for', events.length, 'events');
+    console.log('📈 SessionReport: Calculating stats for', events.length, 'events');
+    console.log('🔍 SessionReport: Force update counter:', forceUpdate);
     
-    // Control operations - match the actual patterns from useDeviceState
+    // Control operations - comprehensive pattern matching
     const controlEvents = events.filter(event => 
       event.includes('🎮 DIRECTION changed') ||
       event.includes('🎮 BRAKE changed') ||
@@ -36,10 +76,14 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       event.includes('🎮 BRAKE RELEASE') ||
       event.includes('DIRECTION changed') ||
       event.includes('BRAKE changed') ||
-      event.includes('SPEED changed')
+      event.includes('SPEED changed') ||
+      event.includes('Brake release') ||
+      event.includes('Direction set') ||
+      event.includes('Speed set') ||
+      event.includes('control_operation')
     ).length;
     
-    // System events - match actual system event patterns
+    // System events - comprehensive pattern matching
     const systemEvents = events.filter(event => 
       event.includes('🚀 SESSION STARTED') ||
       event.includes('🏁 SESSION ENDED') ||
@@ -50,17 +94,21 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       event.includes('⚡ System initialized') ||
       event.includes('✅ Connected to Arduino') ||
       event.includes('⚠️ Operating in offline mode') ||
-      event.includes('💾 Session data saved')
+      event.includes('💾 Session data saved') ||
+      event.includes('system_event') ||
+      event.includes('SESSION')
     ).length;
     
-    // Emergency events - match actual emergency patterns
+    // Emergency events - comprehensive pattern matching
     const emergencyEvents = events.filter(event => 
       event.includes('🚨 EMERGENCY STOP ACTIVATED') ||
       event.includes('🚨 DEVICE RESET initiated') ||
       event.includes('⛔ Emergency action:') ||
       event.includes('⏰ Emergency stop time:') ||
       event.includes('🔄 DEVICE RESET') ||
-      event.includes('Emergency')
+      event.includes('Emergency') ||
+      event.includes('emergency_event') ||
+      event.includes('EMERGENCY')
     ).length;
 
     // Arduino communication events
@@ -69,10 +117,12 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       event.includes('❌ Arduino command failed') ||
       event.includes('📡 Device response:') ||
       event.includes('Arduino') ||
-      event.includes('device communication')
+      event.includes('device communication') ||
+      event.includes('arduino_command') ||
+      event.includes('arduino_error')
     ).length;
 
-    // Safety events
+    // Safety events - comprehensive pattern matching
     const safetyEvents = events.filter(event =>
       event.includes('🛡️ Safety protocol:') ||
       event.includes('🔒 Brake position reset') ||
@@ -80,19 +130,11 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       event.includes('Brake position preserved') ||
       event.includes('Brake position maintained') ||
       event.includes('Safety protocol') ||
-      event.includes('safety')
+      event.includes('safety') ||
+      event.includes('safety_event')
     ).length;
 
-    console.log('SessionReport: Stats calculated -', {
-      total: events.length,
-      control: controlEvents,
-      system: systemEvents,
-      emergency: emergencyEvents,
-      arduino: arduinoEvents,
-      safety: safetyEvents
-    });
-
-    return {
+    const stats = {
       totalEvents: events.length,
       controlEvents,
       systemEvents,
@@ -100,9 +142,23 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       arduinoEvents,
       safetyEvents
     };
-  }, [sessionData.events, forceUpdate]); // Include forceUpdate to trigger recalculation
 
-  const generateReportText = () => {
+    console.log('📊 SessionReport: Stats calculated -', stats);
+    return stats;
+  }, [sessionData.events, forceUpdate, lastEventCount]); // Include all triggers
+
+  // CRITICAL FIX: Memoize with proper dependencies to force recalculation
+  const memoizedEvents = useMemo(() => {
+    console.log('🔄 SessionReport: Memoizing events, count:', sessionData.events.length);
+    return sessionData.events.map((event, index) => ({
+      id: `event-${index}-${forceUpdate}-${Date.now()}`, // Unique key for each render
+      index,
+      content: event,
+      timestamp: Date.now()
+    }));
+  }, [sessionData.events, forceUpdate]);
+
+  const generateReportText = useCallback(() => {
     const reportHeader = `AEROSPIN SESSION REPORT
 Generated: ${new Date().toLocaleString()}
 Session Start: ${sessionData.startTime}
@@ -138,7 +194,7 @@ End of Report
 AEROSPIN Global Control System`;
 
     return reportHeader + eventsText + reportFooter;
-  };
+  }, [sessionData, sessionStats]);
 
   const handleDownloadReport = async () => {
     try {
@@ -312,7 +368,7 @@ AEROSPIN Global Control System`;
           styles.statsTitle,
           isTablet && styles.tabletStatsTitle
         ]}>
-          Detailed Session Statistics
+          Real-Time Session Statistics
         </Text>
         <View style={[
           styles.statsGrid,
@@ -402,7 +458,7 @@ AEROSPIN Global Control System`;
         styles.eventsTitle,
         isTablet && styles.tabletEventsTitle
       ]}>
-        Live Events Log ({sessionStats.totalEvents} events)
+        Live Events Log ({sessionStats.totalEvents} events) - Update #{forceUpdate}
       </Text>
       <ScrollView 
         style={[
@@ -412,9 +468,9 @@ AEROSPIN Global Control System`;
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.eventsContent}
       >
-        {sessionData.events.length > 0 ? (
-          sessionData.events.map((event, index) => (
-            <View key={`event-${index}-${forceUpdate}`} style={[
+        {memoizedEvents.length > 0 ? (
+          memoizedEvents.map((eventItem) => (
+            <View key={eventItem.id} style={[
               styles.eventItem,
               isTablet && styles.tabletEventItem
             ]}>
@@ -422,19 +478,19 @@ AEROSPIN Global Control System`;
                 styles.eventIndex,
                 isTablet && styles.tabletEventIndex
               ]}>
-                {index + 1}.
+                {eventItem.index + 1}.
               </Text>
               <Text style={[
                 styles.eventText,
                 isTablet && styles.tabletEventText,
                 // Enhanced event styling based on actual content patterns
-                (event.includes('🚨') || event.includes('EMERGENCY')) && styles.emergencyEvent,
-                (event.includes('🎮') || event.includes('changed:') || event.includes('BRAKE RELEASE')) && styles.controlEvent,
-                (event.includes('✅ Arduino') || event.includes('❌ Arduino') || event.includes('📡')) && styles.arduinoEvent,
-                (event.includes('🛡️') || event.includes('🔒') || event.includes('🔓') || event.includes('Safety')) && styles.safetyEvent,
-                (event.includes('🚀') || event.includes('🏁') || event.includes('SESSION')) && styles.sessionEvent,
+                (eventItem.content.includes('🚨') || eventItem.content.includes('EMERGENCY')) && styles.emergencyEvent,
+                (eventItem.content.includes('🎮') || eventItem.content.includes('changed:') || eventItem.content.includes('BRAKE RELEASE')) && styles.controlEvent,
+                (eventItem.content.includes('✅ Arduino') || eventItem.content.includes('❌ Arduino') || eventItem.content.includes('📡')) && styles.arduinoEvent,
+                (eventItem.content.includes('🛡️') || eventItem.content.includes('🔒') || eventItem.content.includes('🔓') || eventItem.content.includes('Safety')) && styles.safetyEvent,
+                (eventItem.content.includes('🚀') || eventItem.content.includes('🏁') || eventItem.content.includes('SESSION')) && styles.sessionEvent,
               ]}>
-                {event}
+                {eventItem.content}
               </Text>
             </View>
           ))
