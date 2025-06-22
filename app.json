@@ -57,11 +57,11 @@
         "android.permission.INTERNET"
       ],
       "usesCleartextTraffic": true,
-      "networkSecurityConfig": "@xml/network_security_config",
       "allowBackup": false,
       "requestLegacyExternalStorage": true,
       "targetSdkVersion": 34,
-      "compileSdkVersion": 34
+      "compileSdkVersion": 34,
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -76,6 +76,36 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to detect and connect to AEROSPIN device Wi-Fi network."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true,
+            "networkSecurityConfig": {
+              "domain-config": [
+                {
+                  "domain": "192.168.4.1",
+                  "cleartextTrafficPermitted": true,
+                  "includeSubdomains": true
+                },
+                {
+                  "domain": "localhost",
+                  "cleartextTrafficPermitted": true,
+                  "includeSubdomains": true
+                },
+                {
+                  "domain": "10.0.2.2",
+                  "cleartextTrafficPermitted": true,
+                  "includeSubdomains": true
+                }
+              ],
+              "base-config": {
+                "cleartextTrafficPermitted": false
+              }
+            }
+          }
         }
       ]
     ],

@@ -7,6 +7,7 @@ import { SessionControls } from '@/components/SessionControls';
 import { SessionReport } from '@/components/SessionReport';
 import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { AndroidConnectionDiagnostics } from '@/components/AndroidConnectionDiagnostics';
+import { AndroidCleartextDiagnostics } from '@/components/AndroidCleartextDiagnostics';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useDeviceState } from '@/hooks/useDeviceState';
@@ -30,6 +31,7 @@ export default function SessionsScreen() {
     lastResponse,
     responseTime,
     testConnection,
+    connectionAttempts,
   } = useAndroidArduinoConnection();
   
   const { addSessionAlert } = useAlerts();
@@ -148,11 +150,15 @@ export default function SessionsScreen() {
                   <SessionReport sessionData={sessionData} />
                 )}
                 
+                {/* Android Cleartext Configuration Test */}
+                <AndroidCleartextDiagnostics />
+                
                 {/* Android APK Connection Diagnostics */}
                 <AndroidConnectionDiagnostics
                   connectionStatus={connectionStatus}
                   responseTime={responseTime}
                   lastResponse={lastResponse}
+                  connectionAttempts={connectionAttempts}
                   onRefresh={handleRefreshConnection}
                 />
 
