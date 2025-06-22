@@ -12,7 +12,7 @@ interface AndroidArduinoConnection {
 }
 
 const ARDUINO_IP = '192.168.4.1';
-const OPTIMIZED_TIMEOUT = 15000; // Reduced from 120s to 15s for production builds
+const OPTIMIZED_TIMEOUT = 90000; // Increased from 15s to 90s for Android 15 compatibility
 const RETRY_DELAY = 3000; // Reduced from 10s to 3s
 
 export function useAndroidArduinoConnection(): AndroidArduinoConnection {
