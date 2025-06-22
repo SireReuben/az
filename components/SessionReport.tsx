@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Platform } from 'react-native';
-import { FileText, Download, Share2, Clock, Activity, Zap, TriangleAlert as AlertTriangle, Settings, Shield } from 'lucide-react-native';
+import { FileText, Download, Share2, Clock, Activity, Zap, TriangleAlert as AlertTriangle, Settings, Shield, RefreshCw } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface SessionData {
@@ -18,6 +18,22 @@ export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
   const [forceUpdate, setForceUpdate] = useState(0);
   const [lastEventCount, setLastEventCount] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Manual refresh function
+  const handleManualRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    console.log('🔄 Manual refresh triggered for Session Report');
+    
+    // Force immediate update
+    setForceUpdate(prev => prev + 1);
+    setLastEventCount(sessionData.events.length);
+    
+    // Visual feedback
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 500);
+  }, [sessionData.events.length]);
 
   // CRITICAL FIX: Multiple triggers for real-time updates
   useEffect(() => {
@@ -255,6 +271,32 @@ AEROSPIN Global Control System`;
           Live Session Report
         </Text>
         <View style={styles.buttonGroup}>
+          {/* Manual Refresh Button */}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.refreshButton,
+              isTablet && styles.tabletActionButton,
+              isRefreshing && styles.refreshingButton
+            ]}
+            onPress={handleManualRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw 
+              size={isTablet ? 18 : 16} 
+              color="#ffffff" 
+              style={[
+                isRefreshing && styles.spinning
+              ]}
+            />
+            <Text style={[
+              styles.actionButtonText,
+              isTablet && styles.tabletActionButtonText
+            ]}>
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[
               styles.actionButton,
@@ -454,12 +496,21 @@ AEROSPIN Global Control System`;
       </View>
 
       {/* Live Events Log */}
-      <Text style={[
-        styles.eventsTitle,
-        isTablet && styles.tabletEventsTitle
-      ]}>
-        Live Events Log ({sessionStats.totalEvents} events) - Update #{forceUpdate}
-      </Text>
+      <View style={styles.eventsHeader}>
+        <Text style={[
+          styles.eventsTitle,
+          isTablet && styles.tabletEventsTitle
+        ]}>
+          Live Events Log ({sessionStats.totalEvents} events)
+        </Text>
+        <Text style={[
+          styles.updateIndicator,
+          isTablet && styles.tabletUpdateIndicator
+        ]}>
+          Update #{forceUpdate}
+        </Text>
+      </View>
+      
       <ScrollView 
         style={[
           styles.eventsContainer,
@@ -563,6 +614,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
+  refreshButton: {
+    backgroundColor: '#22c55e',
+  },
+  refreshingButton: {
+    backgroundColor: '#16a34a',
+    opacity: 0.8,
+  },
   downloadButton: {
     backgroundColor: '#3b82f6',
   },
@@ -575,6 +633,9 @@ const styles = StyleSheet.create({
   tabletActionButtonText: {
     fontSize: 14,
     marginLeft: 8,
+  },
+  spinning: {
+    transform: [{ rotate: '360deg' }],
   },
   infoGrid: {
     flexDirection: 'row',
@@ -675,15 +736,34 @@ const styles = StyleSheet.create({
   tabletStatLabel: {
     fontSize: 12,
   },
+  eventsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   eventsTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
     color: '#374151',
-    marginBottom: 12,
   },
   tabletEventsTitle: {
     fontSize: 18,
-    marginBottom: 16,
+  },
+  updateIndicator: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#22c55e',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  tabletUpdateIndicator: {
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   eventsContainer: {
     maxHeight: 300,
