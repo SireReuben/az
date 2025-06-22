@@ -17,66 +17,80 @@ export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
   const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Force re-render whenever sessionData changes
+  // Force re-render whenever sessionData changes - this is critical for real-time updates
   useEffect(() => {
+    console.log('SessionReport: Events updated, count:', sessionData.events.length);
     setForceUpdate(prev => prev + 1);
   }, [sessionData.events.length, sessionData.duration, sessionData.startTime]);
 
-  // Enhanced session statistics with real-time updates
+  // Enhanced session statistics with real-time updates matching actual event patterns
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
+    console.log('SessionReport: Calculating stats for', events.length, 'events');
     
-    // Control operations - look for the actual event patterns from useDeviceState
+    // Control operations - match the actual patterns from useDeviceState
     const controlEvents = events.filter(event => 
-      event.includes('🎮 CONTROL OPERATION') ||
-      event.includes('CONTROL OPERATION - DIRECTION') ||
-      event.includes('CONTROL OPERATION - BRAKE') ||
-      event.includes('CONTROL OPERATION - SPEED') ||
-      event.includes('BRAKE RELEASE')
+      event.includes('🎮 DIRECTION changed') ||
+      event.includes('🎮 BRAKE changed') ||
+      event.includes('🎮 SPEED changed') ||
+      event.includes('🎮 BRAKE RELEASE') ||
+      event.includes('DIRECTION changed') ||
+      event.includes('BRAKE changed') ||
+      event.includes('SPEED changed')
     ).length;
     
-    // System events
+    // System events - match actual system event patterns
     const systemEvents = events.filter(event => 
       event.includes('🚀 SESSION STARTED') ||
       event.includes('🏁 SESSION ENDED') ||
-      event.includes('✅ SYSTEM EVENT') ||
-      event.includes('💾 SYSTEM EVENT') ||
-      event.includes('⚠️ SYSTEM EVENT') ||
       event.includes('📱 Platform:') ||
       event.includes('🌐 Connection:') ||
       event.includes('🔧 Device IP:') ||
       event.includes('🆔 Session ID:') ||
-      event.includes('⚡ System initialized')
+      event.includes('⚡ System initialized') ||
+      event.includes('✅ Connected to Arduino') ||
+      event.includes('⚠️ Operating in offline mode') ||
+      event.includes('💾 Session data saved')
     ).length;
     
-    // Emergency events - look for actual emergency patterns
+    // Emergency events - match actual emergency patterns
     const emergencyEvents = events.filter(event => 
-      event.includes('🚨 EMERGENCY EVENT') ||
-      event.includes('⛔ EMERGENCY EVENT') ||
-      event.includes('EMERGENCY STOP ACTIVATED') ||
-      event.includes('DEVICE RESET initiated') ||
-      event.includes('Emergency action:') ||
-      event.includes('Emergency stop time:')
+      event.includes('🚨 EMERGENCY STOP ACTIVATED') ||
+      event.includes('🚨 DEVICE RESET initiated') ||
+      event.includes('⛔ Emergency action:') ||
+      event.includes('⏰ Emergency stop time:') ||
+      event.includes('🔄 DEVICE RESET') ||
+      event.includes('Emergency')
     ).length;
 
     // Arduino communication events
     const arduinoEvents = events.filter(event =>
-      event.includes('✅ ARDUINO COMMAND') ||
-      event.includes('❌ ARDUINO ERROR') ||
-      event.includes('📡 EMERGENCY EVENT') ||
-      event.includes('Device response:')
+      event.includes('✅ Arduino command sent') ||
+      event.includes('❌ Arduino command failed') ||
+      event.includes('📡 Device response:') ||
+      event.includes('Arduino') ||
+      event.includes('device communication')
     ).length;
 
     // Safety events
     const safetyEvents = events.filter(event =>
-      event.includes('🛡️ SAFETY EVENT') ||
-      event.includes('🔒 SAFETY EVENT') ||
-      event.includes('🔓 CONTROL OPERATION') ||
-      event.includes('Safety protocol:') ||
+      event.includes('🛡️ Safety protocol:') ||
+      event.includes('🔒 Brake position reset') ||
+      event.includes('🔓 Brake operation:') ||
       event.includes('Brake position preserved') ||
       event.includes('Brake position maintained') ||
-      event.includes('Offline emergency protocol')
+      event.includes('Safety protocol') ||
+      event.includes('safety')
     ).length;
+
+    console.log('SessionReport: Stats calculated -', {
+      total: events.length,
+      control: controlEvents,
+      system: systemEvents,
+      emergency: emergencyEvents,
+      arduino: arduinoEvents,
+      safety: safetyEvents
+    });
 
     return {
       totalEvents: events.length,
@@ -414,10 +428,10 @@ AEROSPIN Global Control System`;
                 styles.eventText,
                 isTablet && styles.tabletEventText,
                 // Enhanced event styling based on actual content patterns
-                (event.includes('🚨') || event.includes('EMERGENCY EVENT')) && styles.emergencyEvent,
-                (event.includes('🎮') || event.includes('CONTROL OPERATION')) && styles.controlEvent,
-                (event.includes('✅ ARDUINO') || event.includes('❌ ARDUINO')) && styles.arduinoEvent,
-                (event.includes('🛡️') || event.includes('SAFETY EVENT')) && styles.safetyEvent,
+                (event.includes('🚨') || event.includes('EMERGENCY')) && styles.emergencyEvent,
+                (event.includes('🎮') || event.includes('changed:') || event.includes('BRAKE RELEASE')) && styles.controlEvent,
+                (event.includes('✅ Arduino') || event.includes('❌ Arduino') || event.includes('📡')) && styles.arduinoEvent,
+                (event.includes('🛡️') || event.includes('🔒') || event.includes('🔓') || event.includes('Safety')) && styles.safetyEvent,
                 (event.includes('🚀') || event.includes('🏁') || event.includes('SESSION')) && styles.sessionEvent,
               ]}>
                 {event}
