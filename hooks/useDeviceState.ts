@@ -133,17 +133,24 @@ export function useDeviceState() {
       eventWithDetails += ` - Details: ${JSON.stringify(details)}`;
     }
     
-    // Update session data immediately with new event and current duration
-    setSessionData(prev => ({
-      ...prev,
-      events: [...prev.events, eventWithDetails],
-      duration: calculateDuration(), // Always update duration when adding events
-    }));
+    // CRITICAL FIX: Update session data immediately and force re-render
+    setSessionData(prev => {
+      const newEvents = [...prev.events, eventWithDetails];
+      const newDuration = calculateDuration();
+      
+      console.log('Adding session event:', eventWithDetails);
+      console.log('Total events now:', newEvents.length);
+      
+      return {
+        ...prev,
+        events: newEvents,
+        duration: newDuration,
+      };
+    });
     
-    console.log('Session event added:', eventWithDetails);
   }, [deviceState.sessionActive, responseTime, calculateDuration]);
 
-  // Optimized device state updates with proper logging
+  // Optimized device state updates with immediate event logging
   const updateDeviceState = useCallback(async (updates: Partial<DeviceState>) => {
     const now = Date.now();
     
@@ -168,57 +175,52 @@ export function useDeviceState() {
       return newState;
     });
 
-    // Log detailed session events for each control operation IMMEDIATELY
+    // CRITICAL FIX: Log events immediately after state update
     if (deviceState.sessionActive) {
-      // Use setTimeout to ensure state updates are processed first
-      setTimeout(() => {
-        Object.entries(updates).forEach(([key, value]) => {
-          if (key !== 'sessionActive') {
-            const previousValue = previousState[key as keyof DeviceState];
-            
-            // Enhanced logging for different control types with clear markers
-            if (key === 'direction') {
-              addSessionEvent(`🎮 CONTROL OPERATION - DIRECTION: ${previousValue} → ${value}`, { 
-                type: 'control_operation',
-                control: 'direction', 
-                from: previousValue, 
-                to: value,
-                timestamp: new Date().toISOString(),
-                connectionStatus: isConnected ? 'online' : 'offline'
-              });
-            } else if (key === 'brake') {
-              addSessionEvent(`🎮 CONTROL OPERATION - BRAKE: ${previousValue} → ${value}`, { 
-                type: 'control_operation',
-                control: 'brake', 
-                from: previousValue, 
-                to: value,
-                timestamp: new Date().toISOString(),
-                connectionStatus: isConnected ? 'online' : 'offline'
-              });
-            } else if (key === 'speed') {
-              addSessionEvent(`🎮 CONTROL OPERATION - SPEED: ${previousValue}% → ${value}%`, { 
-                type: 'control_operation',
-                control: 'speed', 
-                from: previousValue, 
-                to: value,
-                timestamp: new Date().toISOString(),
-                connectionStatus: isConnected ? 'online' : 'offline'
-              });
-            }
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key !== 'sessionActive') {
+          const previousValue = previousState[key as keyof DeviceState];
+          
+          // Enhanced logging for different control types with clear markers
+          if (key === 'direction') {
+            addSessionEvent(`🎮 DIRECTION changed: ${previousValue} → ${value}`, { 
+              type: 'control_operation',
+              control: 'direction', 
+              from: previousValue, 
+              to: value,
+              timestamp: new Date().toISOString(),
+              connectionStatus: isConnected ? 'online' : 'offline'
+            });
+          } else if (key === 'brake') {
+            addSessionEvent(`🎮 BRAKE changed: ${previousValue} → ${value}`, { 
+              type: 'control_operation',
+              control: 'brake', 
+              from: previousValue, 
+              to: value,
+              timestamp: new Date().toISOString(),
+              connectionStatus: isConnected ? 'online' : 'offline'
+            });
+          } else if (key === 'speed') {
+            addSessionEvent(`🎮 SPEED changed: ${previousValue}% → ${value}%`, { 
+              type: 'control_operation',
+              control: 'speed', 
+              from: previousValue, 
+              to: value,
+              timestamp: new Date().toISOString(),
+              connectionStatus: isConnected ? 'online' : 'offline'
+            });
           }
-        });
-      }, 50); // Small delay to ensure state is updated
+        }
+      });
     }
 
     // Send commands to Arduino if connected
     if (!isConnected) {
       if (deviceState.sessionActive) {
-        setTimeout(() => {
-          addSessionEvent('⚠️ SYSTEM EVENT - Operating in offline mode - changes saved locally', {
-            type: 'system_event',
-            offline: true
-          });
-        }, 100);
+        addSessionEvent('⚠️ Operating in offline mode - changes saved locally', {
+          type: 'system_event',
+          offline: true
+        });
       }
       return;
     }
@@ -231,24 +233,20 @@ export function useDeviceState() {
           sendCommand(`/direction?state=${updates.direction.toLowerCase()}`)
             .then(() => {
               if (deviceState.sessionActive) {
-                setTimeout(() => {
-                  addSessionEvent(`✅ ARDUINO COMMAND - Direction set to ${updates.direction}`, {
-                    type: 'arduino_command',
-                    command: 'direction',
-                    value: updates.direction
-                  });
-                }, 100);
+                addSessionEvent(`✅ Arduino command sent: Direction set to ${updates.direction}`, {
+                  type: 'arduino_command',
+                  command: 'direction',
+                  value: updates.direction
+                });
               }
             })
             .catch(() => {
               if (deviceState.sessionActive) {
-                setTimeout(() => {
-                  addSessionEvent(`❌ ARDUINO ERROR - Direction command failed: ${updates.direction}`, {
-                    type: 'arduino_error',
-                    command: 'direction',
-                    value: updates.direction
-                  });
-                }, 100);
+                addSessionEvent(`❌ Arduino command failed: Direction ${updates.direction}`, {
+                  type: 'arduino_error',
+                  command: 'direction',
+                  value: updates.direction
+                });
               }
             })
         );
@@ -261,26 +259,22 @@ export function useDeviceState() {
           sendCommand(`/brake?action=${action}&state=${state}`)
             .then(() => {
               if (deviceState.sessionActive) {
-                setTimeout(() => {
-                  addSessionEvent(`✅ ARDUINO COMMAND - Brake ${action} ${state}`, {
-                    type: 'arduino_command',
-                    command: 'brake',
-                    action: action,
-                    state: state
-                  });
-                }, 100);
+                addSessionEvent(`✅ Arduino command sent: Brake ${action} ${state}`, {
+                  type: 'arduino_command',
+                  command: 'brake',
+                  action: action,
+                  state: state
+                });
               }
             })
             .catch(() => {
               if (deviceState.sessionActive) {
-                setTimeout(() => {
-                  addSessionEvent(`❌ ARDUINO ERROR - Brake command failed: ${action} ${state}`, {
-                    type: 'arduino_error',
-                    command: 'brake',
-                    action: action,
-                    state: state
-                  });
-                }, 100);
+                addSessionEvent(`❌ Arduino command failed: Brake ${action} ${state}`, {
+                  type: 'arduino_error',
+                  command: 'brake',
+                  action: action,
+                  state: state
+                });
               }
             })
         );
@@ -291,24 +285,20 @@ export function useDeviceState() {
           sendCommand(`/speed?value=${updates.speed}`)
             .then(() => {
               if (deviceState.sessionActive) {
-                setTimeout(() => {
-                  addSessionEvent(`✅ ARDUINO COMMAND - Speed set to ${updates.speed}%`, {
-                    type: 'arduino_command',
-                    command: 'speed',
-                    value: updates.speed
-                  });
-                }, 100);
+                addSessionEvent(`✅ Arduino command sent: Speed set to ${updates.speed}%`, {
+                  type: 'arduino_command',
+                  command: 'speed',
+                  value: updates.speed
+                });
               }
             })
             .catch(() => {
               if (deviceState.sessionActive) {
-                setTimeout(() => {
-                  addSessionEvent(`❌ ARDUINO ERROR - Speed command failed: ${updates.speed}%`, {
-                    type: 'arduino_error',
-                    command: 'speed',
-                    value: updates.speed
-                  });
-                }, 100);
+                addSessionEvent(`❌ Arduino command failed: Speed ${updates.speed}%`, {
+                  type: 'arduino_error',
+                  command: 'speed',
+                  value: updates.speed
+                });
               }
             })
         );
@@ -320,12 +310,10 @@ export function useDeviceState() {
     } catch (error) {
       console.log('Device update failed, continuing in offline mode:', error);
       if (deviceState.sessionActive) {
-        setTimeout(() => {
-          addSessionEvent('❌ SYSTEM ERROR - Device communication lost - operating offline', { 
-            type: 'system_error',
-            error: error.message 
-          });
-        }, 100);
+        addSessionEvent('❌ Device communication lost - operating offline', { 
+          type: 'system_error',
+          error: error.message 
+        });
       }
     }
   }, [deviceState, isConnected, sendCommand, addSessionEvent]);
@@ -411,7 +399,7 @@ export function useDeviceState() {
     if (!isConnected) {
       // Add offline mode event
       setTimeout(() => {
-        addSessionEvent('⚠️ SYSTEM EVENT - Operating in offline mode - all controls will be logged locally', {
+        addSessionEvent('⚠️ Operating in offline mode - all controls will be logged locally', {
           type: 'system_event',
           offline: true
         });
@@ -423,7 +411,7 @@ export function useDeviceState() {
       const result = await sendCommand('/startSession');
       if (result.ok) {
         setTimeout(() => {
-          addSessionEvent('✅ SYSTEM EVENT - Connected to Arduino device successfully', {
+          addSessionEvent('✅ Connected to Arduino device successfully', {
             type: 'system_event',
             arduino_connected: true
           });
@@ -433,7 +421,7 @@ export function useDeviceState() {
       }
     } catch (error) {
       setTimeout(() => {
-        addSessionEvent('⚠️ SYSTEM ERROR - Device connection lost - continuing offline', { 
+        addSessionEvent('⚠️ Device connection lost - continuing offline', { 
           type: 'system_error',
           error: error.message 
         });
@@ -470,7 +458,7 @@ export function useDeviceState() {
       type: 'session_summary',
       event_count: sessionData.events.length + 2
     });
-    addSessionEvent(`🔒 SAFETY EVENT - Brake position reset to None (session end procedure)`, {
+    addSessionEvent(`🔒 Brake position reset to None (session end procedure)`, {
       type: 'safety_event',
       brake_reset: true
     });
@@ -479,13 +467,13 @@ export function useDeviceState() {
       try {
         const result = await sendCommand('/endSession');
         if (result.ok) {
-          addSessionEvent('💾 SYSTEM EVENT - Session data saved to Arduino device', {
+          addSessionEvent('💾 Session data saved to Arduino device', {
             type: 'system_event',
             data_saved: true
           });
         }
       } catch (error) {
-        addSessionEvent('💾 SYSTEM EVENT - Session ended offline - data saved locally only', {
+        addSessionEvent('💾 Session ended offline - data saved locally only', {
           type: 'system_event',
           offline_save: true
         });
@@ -511,16 +499,16 @@ export function useDeviceState() {
 
     // Log the reset operation in session
     if (deviceState.sessionActive) {
-      addSessionEvent(`🚨 EMERGENCY EVENT - DEVICE RESET initiated - preserving brake position: ${currentBrake}`, {
+      addSessionEvent(`🚨 DEVICE RESET initiated - preserving brake position: ${currentBrake}`, {
         type: 'emergency_event',
         action: 'reset',
         brake_preserved: currentBrake
       });
-      addSessionEvent(`⚠️ EMERGENCY EVENT - Reset operation: All controls stopped, device restarting`, {
+      addSessionEvent(`⚠️ Reset operation: All controls stopped, device restarting`, {
         type: 'emergency_event',
         action: 'reset_details'
       });
-      addSessionEvent(`🛡️ SAFETY EVENT - Safety protocol: Brake position maintained during reset`, {
+      addSessionEvent(`🛡️ Safety protocol: Brake position maintained during reset`, {
         type: 'safety_event',
         brake_maintained: true
       });
@@ -560,20 +548,20 @@ export function useDeviceState() {
 
     // Log emergency stop operation in session IMMEDIATELY
     if (deviceState.sessionActive) {
-      addSessionEvent(`🚨 EMERGENCY EVENT - EMERGENCY STOP ACTIVATED`, {
+      addSessionEvent(`🚨 EMERGENCY STOP ACTIVATED`, {
         type: 'emergency_event',
         action: 'emergency_stop',
         critical: true
       });
-      addSessionEvent(`⛔ EMERGENCY EVENT - Emergency action: All motor operations halted immediately`, {
+      addSessionEvent(`⛔ Emergency action: All motor operations halted immediately`, {
         type: 'emergency_event',
         action: 'motor_halt'
       });
-      addSessionEvent(`🛡️ SAFETY EVENT - Safety protocol: Brake position preserved (${currentBrake})`, {
+      addSessionEvent(`🛡️ Safety protocol: Brake position preserved (${currentBrake})`, {
         type: 'safety_event',
         brake_preserved: currentBrake
       });
-      addSessionEvent(`⏰ EMERGENCY EVENT - Emergency stop time: ${new Date().toLocaleTimeString()}`, {
+      addSessionEvent(`⏰ Emergency stop time: ${new Date().toLocaleTimeString()}`, {
         type: 'emergency_event',
         timestamp: new Date().toISOString()
       });
@@ -595,43 +583,37 @@ export function useDeviceState() {
         ]);
         
         if (deviceState.sessionActive) {
-          setTimeout(() => {
-            addSessionEvent(`✅ EMERGENCY EVENT - Emergency commands sent to Arduino device successfully`, {
-              type: 'emergency_event',
-              arduino_response: 'success'
-            });
-            addSessionEvent(`📡 EMERGENCY EVENT - Device response: Speed set to 0%, Direction set to None`, {
-              type: 'emergency_event',
-              device_confirmation: true
-            });
-          }, 100);
+          addSessionEvent(`✅ Emergency commands sent to Arduino device successfully`, {
+            type: 'emergency_event',
+            arduino_response: 'success'
+          });
+          addSessionEvent(`📡 Device response: Speed set to 0%, Direction set to None`, {
+            type: 'emergency_event',
+            device_confirmation: true
+          });
         }
       } catch (error) {
         if (deviceState.sessionActive) {
-          setTimeout(() => {
-            addSessionEvent(`⚠️ EMERGENCY EVENT - Emergency stop - device communication failed, local stop applied`, {
-              type: 'emergency_event',
-              offline_emergency: true
-            });
-            addSessionEvent(`🔒 SAFETY EVENT - Offline emergency protocol: Local controls stopped`, {
-              type: 'safety_event',
-              offline_protocol: true
-            });
-          }, 100);
+          addSessionEvent(`⚠️ Emergency stop - device communication failed, local stop applied`, {
+            type: 'emergency_event',
+            offline_emergency: true
+          });
+          addSessionEvent(`🔒 Offline emergency protocol: Local controls stopped`, {
+            type: 'safety_event',
+            offline_protocol: true
+          });
         }
       }
     } else {
       if (deviceState.sessionActive) {
-        setTimeout(() => {
-          addSessionEvent(`🔒 EMERGENCY EVENT - Emergency stop applied in offline mode`, {
-            type: 'emergency_event',
-            offline_mode: true
-          });
-          addSessionEvent(`🛡️ SAFETY EVENT - Offline emergency protocol: All local controls stopped`, {
-            type: 'safety_event',
-            offline_emergency: true
-          });
-        }, 100);
+        addSessionEvent(`🔒 Emergency stop applied in offline mode`, {
+          type: 'emergency_event',
+          offline_mode: true
+        });
+        addSessionEvent(`🛡️ Offline emergency protocol: All local controls stopped`, {
+          type: 'safety_event',
+          offline_emergency: true
+        });
       }
     }
   }, [deviceState, isConnected, sendCommand, addSessionEvent]);
@@ -639,11 +621,11 @@ export function useDeviceState() {
   const releaseBrake = useCallback(async () => {
     // Log brake release operation
     if (deviceState.sessionActive) {
-      addSessionEvent(`🎮 CONTROL OPERATION - BRAKE RELEASE operation initiated`, {
+      addSessionEvent(`🎮 BRAKE RELEASE operation initiated`, {
         type: 'control_operation',
         action: 'brake_release'
       });
-      addSessionEvent(`🔓 CONTROL OPERATION - Brake operation: Releasing from ${deviceState.brake} to None position`, {
+      addSessionEvent(`🔓 Brake operation: Releasing from ${deviceState.brake} to None position`, {
         type: 'control_operation',
         brake_from: deviceState.brake,
         brake_to: 'None'
@@ -653,12 +635,10 @@ export function useDeviceState() {
     await updateDeviceState({ brake: 'None' });
     
     if (deviceState.sessionActive) {
-      setTimeout(() => {
-        addSessionEvent('✅ CONTROL OPERATION - Brake release operation completed successfully', {
-          type: 'control_operation',
-          action: 'brake_release_complete'
-        });
-      }, 100);
+      addSessionEvent('✅ Brake release operation completed successfully', {
+        type: 'control_operation',
+        action: 'brake_release_complete'
+      });
     }
   }, [updateDeviceState, deviceState.sessionActive, deviceState.brake, addSessionEvent]);
 
