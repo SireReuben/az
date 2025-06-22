@@ -316,6 +316,7 @@ export function useDeviceState() {
     addSessionEvent(`Session ended at ${sessionEndTime.toLocaleString()}`);
     addSessionEvent(`Total session duration: ${durationStr}`);
     addSessionEvent(`Total events logged: ${sessionData.events.length + 2}`);
+    addSessionEvent(`Brake position reset to None (session end procedure)`);
 
     if (isConnected) {
       try {
@@ -345,8 +346,15 @@ export function useDeviceState() {
     const currentBrake = deviceState.brake;
     setPreviousBrakePosition(currentBrake);
 
+    // Log the reset operation in session
     if (deviceState.sessionActive) {
-      addSessionEvent(`Device reset initiated - preserving brake position: ${currentBrake}`);
+      addSessionEvent(`🔄 DEVICE RESET initiated - preserving brake position: ${currentBrake}`);
+      addSessionEvent(`Reset operation: All controls stopped, device restarting`);
+      addSessionEvent(`Safety protocol: Brake position maintained during reset`);
+    }
+
+    // End session if active before reset
+    if (deviceState.sessionActive) {
       await endSession();
     }
 
@@ -360,12 +368,10 @@ export function useDeviceState() {
     if (isConnected) {
       try {
         await sendCommand('/reset', 10000);
-        addSessionEvent(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
+        console.log(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
       } catch (error) {
-        addSessionEvent(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
+        console.log(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
       }
-    } else {
-      addSessionEvent(`Device reset (offline mode) - brake position preserved: ${currentBrake}`);
     }
 
     setSessionData({
@@ -379,8 +385,12 @@ export function useDeviceState() {
     const currentBrake = deviceState.brake;
     setPreviousBrakePosition(currentBrake);
 
+    // Log emergency stop operation in session
     if (deviceState.sessionActive) {
-      addSessionEvent(`🚨 EMERGENCY STOP ACTIVATED - preserving brake position: ${currentBrake}`);
+      addSessionEvent(`🚨 EMERGENCY STOP ACTIVATED`);
+      addSessionEvent(`Emergency action: All motor operations halted immediately`);
+      addSessionEvent(`Safety protocol: Brake position preserved (${currentBrake})`);
+      addSessionEvent(`Emergency stop time: ${new Date().toLocaleTimeString()}`);
     }
 
     const emergencyState = {
@@ -397,21 +407,38 @@ export function useDeviceState() {
           sendCommand('/speed?value=0', 3000),
           sendCommand('/direction?state=none', 3000)
         ]);
-        addSessionEvent(`Emergency stop commands sent to device - brake position maintained: ${currentBrake}`);
+        
+        if (deviceState.sessionActive) {
+          addSessionEvent(`Emergency commands sent to Arduino device successfully`);
+          addSessionEvent(`Device response: Speed set to 0%, Direction set to None`);
+        }
       } catch (error) {
-        addSessionEvent(`Emergency stop - device communication failed, local stop applied. Brake position preserved: ${currentBrake}`);
+        if (deviceState.sessionActive) {
+          addSessionEvent(`Emergency stop - device communication failed, local stop applied`);
+          addSessionEvent(`Offline emergency protocol: Local controls stopped`);
+        }
       }
     } else {
-      addSessionEvent(`Emergency stop applied (offline mode) - brake position preserved: ${currentBrake}`);
+      if (deviceState.sessionActive) {
+        addSessionEvent(`Emergency stop applied in offline mode`);
+        addSessionEvent(`Offline emergency protocol: All local controls stopped`);
+      }
     }
   }, [deviceState, isConnected, sendCommand, addSessionEvent]);
 
   const releaseBrake = useCallback(async () => {
-    await updateDeviceState({ brake: 'None' });
+    // Log brake release operation
     if (deviceState.sessionActive) {
-      addSessionEvent('Brake released to None position');
+      addSessionEvent(`🔧 BRAKE RELEASE operation initiated`);
+      addSessionEvent(`Brake operation: Releasing from ${deviceState.brake} to None position`);
     }
-  }, [updateDeviceState, deviceState.sessionActive, addSessionEvent]);
+
+    await updateDeviceState({ brake: 'None' });
+    
+    if (deviceState.sessionActive) {
+      addSessionEvent('Brake release operation completed successfully');
+    }
+  }, [updateDeviceState, deviceState.sessionActive, deviceState.brake, addSessionEvent]);
 
   const refreshConnection = useCallback(async () => {
     const success = await testConnection();
