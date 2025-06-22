@@ -16,48 +16,60 @@ interface SessionReportProps {
 export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
 
-  // Enhanced session statistics with better categorization
+  // Enhanced session statistics with proper event detection
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
     
-    // Control operations (direction, brake, speed changes)
+    // Control operations - look for the actual event patterns from useDeviceState
     const controlEvents = events.filter(event => 
-      event.includes('CONTROL OPERATION') ||
-      event.includes('🎮')
+      event.includes('🎮 CONTROL OPERATION') ||
+      event.includes('CONTROL OPERATION - DIRECTION') ||
+      event.includes('CONTROL OPERATION - BRAKE') ||
+      event.includes('CONTROL OPERATION - SPEED') ||
+      event.includes('BRAKE RELEASE')
     ).length;
     
-    // System events (connections, status updates, etc.)
+    // System events
     const systemEvents = events.filter(event => 
-      event.includes('SYSTEM EVENT') || 
-      event.includes('SESSION STARTED') ||
-      event.includes('SESSION ENDED') ||
-      event.includes('🚀') ||
-      event.includes('🏁') ||
-      event.includes('✅') ||
-      event.includes('💾')
+      event.includes('🚀 SESSION STARTED') ||
+      event.includes('🏁 SESSION ENDED') ||
+      event.includes('✅ SYSTEM EVENT') ||
+      event.includes('💾 SYSTEM EVENT') ||
+      event.includes('⚠️ SYSTEM EVENT') ||
+      event.includes('📱 Platform:') ||
+      event.includes('🌐 Connection:') ||
+      event.includes('🔧 Device IP:') ||
+      event.includes('🆔 Session ID:') ||
+      event.includes('⚡ System initialized')
     ).length;
     
-    // Emergency events (emergency stops, resets, safety protocols)
+    // Emergency events - look for actual emergency patterns
     const emergencyEvents = events.filter(event => 
-      event.includes('EMERGENCY EVENT') || 
-      event.includes('🚨') ||
-      event.includes('⛔') ||
-      event.includes('⚠️')
+      event.includes('🚨 EMERGENCY EVENT') ||
+      event.includes('⛔ EMERGENCY EVENT') ||
+      event.includes('EMERGENCY STOP ACTIVATED') ||
+      event.includes('DEVICE RESET initiated') ||
+      event.includes('Emergency action:') ||
+      event.includes('Emergency stop time:')
     ).length;
 
     // Arduino communication events
     const arduinoEvents = events.filter(event =>
-      event.includes('ARDUINO COMMAND') ||
-      event.includes('ARDUINO ERROR') ||
-      event.includes('📡')
+      event.includes('✅ ARDUINO COMMAND') ||
+      event.includes('❌ ARDUINO ERROR') ||
+      event.includes('📡 EMERGENCY EVENT') ||
+      event.includes('Device response:')
     ).length;
 
     // Safety events
     const safetyEvents = events.filter(event =>
-      event.includes('SAFETY EVENT') ||
-      event.includes('🛡️') ||
-      event.includes('🔒') ||
-      event.includes('🔓')
+      event.includes('🛡️ SAFETY EVENT') ||
+      event.includes('🔒 SAFETY EVENT') ||
+      event.includes('🔓 CONTROL OPERATION') ||
+      event.includes('Safety protocol:') ||
+      event.includes('Brake position preserved') ||
+      event.includes('Brake position maintained') ||
+      event.includes('Offline emergency protocol')
     ).length;
 
     return {
@@ -395,12 +407,12 @@ AEROSPIN Global Control System`;
               <Text style={[
                 styles.eventText,
                 isTablet && styles.tabletEventText,
-                // Enhanced event styling based on content
+                // Enhanced event styling based on actual content patterns
                 (event.includes('🚨') || event.includes('EMERGENCY EVENT')) && styles.emergencyEvent,
                 (event.includes('🎮') || event.includes('CONTROL OPERATION')) && styles.controlEvent,
-                (event.includes('ARDUINO COMMAND') || event.includes('ARDUINO ERROR')) && styles.arduinoEvent,
-                (event.includes('SAFETY EVENT') || event.includes('🛡️')) && styles.safetyEvent,
-                (event.includes('SESSION STARTED') || event.includes('SESSION ENDED')) && styles.sessionEvent,
+                (event.includes('✅ ARDUINO') || event.includes('❌ ARDUINO')) && styles.arduinoEvent,
+                (event.includes('🛡️') || event.includes('SAFETY EVENT')) && styles.safetyEvent,
+                (event.includes('🚀') || event.includes('🏁') || event.includes('SESSION')) && styles.sessionEvent,
               ]}>
                 {event}
               </Text>
