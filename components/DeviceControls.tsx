@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { ArrowUp, ArrowDown, Square, TriangleAlert as AlertTriangle, Minus, Plus } from 'lucide-react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface DeviceState {
@@ -32,6 +32,7 @@ export function DeviceControls({
   const speedBarWidth = useSharedValue(deviceState.speed);
   const { isTablet, isLandscape, screenType } = useDeviceOrientation();
 
+  // Animated styles for smooth UI updates
   const animatedSpeedBarStyle = useAnimatedStyle(() => {
     return {
       width: withSpring(`${speedBarWidth.value}%`, {
@@ -41,7 +42,27 @@ export function DeviceControls({
     };
   });
 
-  const handleDirectionChange = (direction: string) => {
+  // Optimized button press animations
+  const createButtonAnimation = useCallback(() => {
+    const scale = useSharedValue(1);
+    
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+    }));
+
+    const onPressIn = () => {
+      scale.value = withTiming(0.95, { duration: 100 });
+    };
+
+    const onPressOut = () => {
+      scale.value = withSpring(1, { damping: 10, stiffness: 200 });
+    };
+
+    return { animatedStyle, onPressIn, onPressOut };
+  }, []);
+
+  // Memoized handlers for better performance
+  const handleDirectionChange = useCallback((direction: string) => {
     if (disabled) return;
     
     Alert.alert(
@@ -55,9 +76,9 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [disabled, onUpdateState]);
 
-  const handleBrakeChange = (brake: string) => {
+  const handleBrakeChange = useCallback((brake: string) => {
     if (disabled) return;
     
     const currentBrake = deviceState.brake;
@@ -74,9 +95,9 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [disabled, deviceState.brake, onUpdateState]);
 
-  const handleSpeedChange = (speed: number) => {
+  const handleSpeedChange = useCallback((speed: number) => {
     if (disabled) return;
     
     Alert.alert(
@@ -94,9 +115,9 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [disabled, speedBarWidth, onUpdateState]);
 
-  const handleSliderSpeedChange = () => {
+  const handleSliderSpeedChange = useCallback(() => {
     if (disabled) return;
     
     Alert.alert(
@@ -113,15 +134,15 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [disabled, sliderValue, speedBarWidth, onUpdateState]);
 
-  const adjustSliderValue = (delta: number) => {
+  const adjustSliderValue = useCallback((delta: number) => {
     if (disabled) return;
     const newValue = Math.max(0, Math.min(100, sliderValue + delta));
     setSliderValue(newValue);
-  };
+  }, [disabled, sliderValue]);
 
-  const handleEmergencyStop = () => {
+  const handleEmergencyStop = useCallback(() => {
     Alert.alert(
       'EMERGENCY STOP',
       `This will immediately stop all motor operations and set speed to 0. The current brake position (${deviceState.brake}) will be maintained. Continue?`,
@@ -134,9 +155,9 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [deviceState.brake, onEmergencyStop]);
 
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     Alert.alert(
       'Reset Device',
       `This will reset the Arduino device, restart all systems, and end the current session. The current brake position (${deviceState.brake}) will be preserved and restored after reset. Continue?`,
@@ -149,9 +170,9 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [deviceState.brake, onReset]);
 
-  const handleReleaseBrake = () => {
+  const handleReleaseBrake = useCallback(() => {
     if (disabled) return;
     
     Alert.alert(
@@ -165,27 +186,29 @@ export function DeviceControls({
         },
       ]
     );
-  };
+  }, [disabled, onReleaseBrake]);
 
-  // Update slider when device state changes
+  // Update slider when device state changes (optimized)
   React.useEffect(() => {
-    setSliderValue(deviceState.speed);
-    speedBarWidth.value = deviceState.speed;
-  }, [deviceState.speed]);
+    if (deviceState.speed !== sliderValue) {
+      setSliderValue(deviceState.speed);
+      speedBarWidth.value = withTiming(deviceState.speed, { duration: 300 });
+    }
+  }, [deviceState.speed, sliderValue, speedBarWidth]);
 
-  const getControlSectionLayout = () => {
+  // Memoized layout calculations
+  const layoutStyles = useMemo(() => {
     if (isTablet && isLandscape && screenType !== 'phone') {
-      return styles.tabletLandscapeControlSection;
+      return {
+        controlSection: styles.tabletLandscapeControlSection,
+        buttonRow: styles.tabletButtonRow,
+      };
     }
-    return null;
-  };
-
-  const getButtonRowLayout = () => {
-    if (isTablet) {
-      return styles.tabletButtonRow;
-    }
-    return null;
-  };
+    return {
+      controlSection: null,
+      buttonRow: null,
+    };
+  }, [isTablet, isLandscape, screenType]);
 
   return (
     <View style={[
@@ -212,6 +235,7 @@ export function DeviceControls({
           ]}
           onPress={handleEmergencyStop}
           disabled={disabled}
+          activeOpacity={0.8}
         >
           <Square size={isTablet ? 28 : 24} color="#ffffff" />
           <Text style={[
@@ -230,6 +254,7 @@ export function DeviceControls({
           ]}
           onPress={handleReset}
           disabled={disabled}
+          activeOpacity={0.8}
         >
           <AlertTriangle size={isTablet ? 24 : 20} color="#ffffff" />
           <Text style={[
@@ -262,7 +287,7 @@ export function DeviceControls({
         </View>
       )}
       
-      <View style={getControlSectionLayout()}>
+      <View style={layoutStyles.controlSection}>
         {/* Direction Controls */}
         <View style={[
           styles.controlSection,
@@ -274,7 +299,7 @@ export function DeviceControls({
           ]}>
             Motor Direction
           </Text>
-          <View style={[styles.buttonRow, getButtonRowLayout()]}>
+          <View style={[styles.buttonRow, layoutStyles.buttonRow]}>
             <TouchableOpacity
               style={[
                 styles.controlButton,
@@ -285,6 +310,7 @@ export function DeviceControls({
               ]}
               onPress={() => handleDirectionChange('Forward')}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <ArrowUp size={isTablet ? 24 : 20} color="#ffffff" />
               <Text style={[
@@ -305,6 +331,7 @@ export function DeviceControls({
               ]}
               onPress={() => handleDirectionChange('Reverse')}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <ArrowDown size={isTablet ? 24 : 20} color="#ffffff" />
               <Text style={[
@@ -328,7 +355,7 @@ export function DeviceControls({
           ]}>
             Brake Control
           </Text>
-          <View style={[styles.buttonRow, getButtonRowLayout()]}>
+          <View style={[styles.buttonRow, layoutStyles.buttonRow]}>
             <TouchableOpacity
               style={[
                 styles.controlButton,
@@ -339,6 +366,7 @@ export function DeviceControls({
               ]}
               onPress={() => handleBrakeChange('Pull')}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <Text style={[
                 styles.buttonText,
@@ -358,6 +386,7 @@ export function DeviceControls({
               ]}
               onPress={() => handleBrakeChange('Push')}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <Text style={[
                 styles.buttonText,
@@ -379,6 +408,7 @@ export function DeviceControls({
                 ]}
                 onPress={handleReleaseBrake}
                 disabled={disabled}
+                activeOpacity={0.8}
               >
                 <Text style={[
                   styles.releaseBrakeButtonText,
@@ -437,6 +467,7 @@ export function DeviceControls({
               ]}
               onPress={() => adjustSliderValue(-5)}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <Minus size={isTablet ? 20 : 16} color="#ffffff" />
             </TouchableOpacity>
@@ -470,6 +501,7 @@ export function DeviceControls({
               ]}
               onPress={() => adjustSliderValue(5)}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <Plus size={isTablet ? 20 : 16} color="#ffffff" />
             </TouchableOpacity>
@@ -483,6 +515,7 @@ export function DeviceControls({
             ]}
             onPress={handleSliderSpeedChange}
             disabled={disabled}
+            activeOpacity={0.8}
           >
             <Text style={[
               styles.applySpeedButtonText,
@@ -509,6 +542,7 @@ export function DeviceControls({
               ]}
               onPress={() => handleSpeedChange(speed)}
               disabled={disabled}
+              activeOpacity={0.8}
             >
               <Text style={[
                 styles.speedButtonText,
