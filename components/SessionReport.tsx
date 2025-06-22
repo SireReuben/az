@@ -8,18 +8,34 @@ interface SessionData {
   duration: string;
   events: string[];
   _updateTrigger?: number; // Internal trigger for forcing updates
+  _lastEventTime?: number; // Track when last event was added
 }
 
 interface SessionReportProps {
   sessionData: SessionData;
+  registerForceUpdateCallback?: (callback: () => void) => () => void; // Optional callback registration
 }
 
-export function SessionReport({ sessionData }: SessionReportProps) {
+export function SessionReport({ sessionData, registerForceUpdateCallback }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
   const [forceUpdate, setForceUpdate] = useState(0);
   const [lastEventCount, setLastEventCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); // CRITICAL FIX: Dedicated refresh trigger
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [realTimeUpdateCount, setRealTimeUpdateCount] = useState(0);
+
+  // CRITICAL FIX: Register for immediate updates from useDeviceState
+  useEffect(() => {
+    if (registerForceUpdateCallback) {
+      const unregister = registerForceUpdateCallback(() => {
+        console.log('🔄 SessionReport: IMMEDIATE UPDATE from useDeviceState');
+        setRealTimeUpdateCount(prev => prev + 1);
+        setForceUpdate(prev => prev + 1);
+      });
+      
+      return unregister;
+    }
+  }, [registerForceUpdateCallback]);
 
   // CRITICAL FIX: Enhanced manual refresh function that forces complete recalculation
   const handleManualRefresh = useCallback(() => {
@@ -33,6 +49,7 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     setRefreshTrigger(newRefreshTrigger);
     setForceUpdate(prev => prev + 1);
     setLastEventCount(sessionData.events.length);
+    setRealTimeUpdateCount(prev => prev + 1);
     
     // Log current events for debugging
     sessionData.events.forEach((event, index) => {
@@ -48,12 +65,13 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     }, 800);
   }, [sessionData.events]);
 
-  // CRITICAL FIX: Multiple triggers for real-time updates with refresh trigger
+  // CRITICAL FIX: Multiple triggers for real-time updates with all possible dependencies
   useEffect(() => {
     console.log('🔄 SessionReport: Events updated, count:', sessionData.events.length);
     console.log('🎯 SessionReport: Duration:', sessionData.duration);
-    console.log('📊 SessionReport: Update trigger:', (sessionData as any)._updateTrigger);
+    console.log('📊 SessionReport: Update trigger:', sessionData._updateTrigger);
     console.log('🔄 SessionReport: Refresh trigger:', refreshTrigger);
+    console.log('⚡ SessionReport: Real-time updates:', realTimeUpdateCount);
     
     // Force re-render on any change
     setForceUpdate(prev => prev + 1);
@@ -62,8 +80,10 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     sessionData.events.length, 
     sessionData.duration, 
     sessionData.startTime,
-    (sessionData as any)._updateTrigger, // Internal trigger from useDeviceState
-    refreshTrigger // CRITICAL: Include refresh trigger
+    sessionData._updateTrigger,
+    sessionData._lastEventTime,
+    refreshTrigger,
+    realTimeUpdateCount
   ]);
 
   // CRITICAL FIX: Additional trigger for event content changes
@@ -72,6 +92,7 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       const latestEvent = sessionData.events[sessionData.events.length - 1];
       console.log('🆕 SessionReport: Latest event:', latestEvent);
       setForceUpdate(prev => prev + 1);
+      setRealTimeUpdateCount(prev => prev + 1);
     }
   }, [sessionData.events]);
 
@@ -83,6 +104,7 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       updateInterval = setInterval(() => {
         console.log('⏰ SessionReport: Periodic update trigger');
         setForceUpdate(prev => prev + 1);
+        setRealTimeUpdateCount(prev => prev + 1);
       }, 1000);
     }
 
@@ -93,12 +115,15 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     };
   }, [sessionData.events.length, sessionData.duration]);
 
-  // CRITICAL FIX: Enhanced session statistics with refresh trigger dependency
+  // CRITICAL FIX: Enhanced session statistics with ALL dependencies
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
     console.log('📈 SessionReport: Calculating stats for', events.length, 'events');
     console.log('🔍 SessionReport: Force update counter:', forceUpdate);
     console.log('🔄 SessionReport: Refresh trigger:', refreshTrigger);
+    console.log('⚡ SessionReport: Real-time updates:', realTimeUpdateCount);
+    console.log('🎯 SessionReport: Update trigger:', sessionData._updateTrigger);
+    console.log('⏰ SessionReport: Last event time:', sessionData._lastEventTime);
     
     // CRITICAL: Log all events that should be counted as control operations
     const controlEventPatterns = [
@@ -225,22 +250,33 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     return stats;
   }, [
     sessionData.events, 
+    sessionData._updateTrigger,
+    sessionData._lastEventTime,
     forceUpdate, 
     lastEventCount, 
-    refreshTrigger // CRITICAL: Include refresh trigger in dependencies
+    refreshTrigger,
+    realTimeUpdateCount
   ]);
 
-  // CRITICAL FIX: Memoize with proper dependencies including refresh trigger
+  // CRITICAL FIX: Memoize with ALL possible dependencies
   const memoizedEvents = useMemo(() => {
     console.log('🔄 SessionReport: Memoizing events, count:', sessionData.events.length);
     console.log('🔄 SessionReport: Refresh trigger in memoization:', refreshTrigger);
+    console.log('⚡ SessionReport: Real-time updates in memoization:', realTimeUpdateCount);
     return sessionData.events.map((event, index) => ({
-      id: `event-${index}-${forceUpdate}-${refreshTrigger}-${Date.now()}`, // Include refresh trigger in key
+      id: `event-${index}-${forceUpdate}-${refreshTrigger}-${realTimeUpdateCount}-${sessionData._updateTrigger}-${Date.now()}`,
       index,
       content: event,
       timestamp: Date.now()
     }));
-  }, [sessionData.events, forceUpdate, refreshTrigger]); // Include refresh trigger
+  }, [
+    sessionData.events, 
+    sessionData._updateTrigger,
+    sessionData._lastEventTime,
+    forceUpdate, 
+    refreshTrigger,
+    realTimeUpdateCount
+  ]);
 
   const generateReportText = useCallback(() => {
     const reportHeader = `AEROSPIN SESSION REPORT
@@ -575,7 +611,7 @@ AEROSPIN Global Control System`;
           styles.updateIndicator,
           isTablet && styles.tabletUpdateIndicator
         ]}>
-          Update #{forceUpdate} | Refresh #{refreshTrigger}
+          Updates: {realTimeUpdateCount} | Refresh: {refreshTrigger}
         </Text>
       </View>
       

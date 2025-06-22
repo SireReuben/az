@@ -14,6 +14,8 @@ interface SessionData {
   startTime: string;
   duration: string;
   events: string[];
+  _updateTrigger?: number; // Internal trigger for forcing updates
+  _lastEventTime?: number; // Track when last event was added
 }
 
 export function useDeviceState() {
@@ -28,6 +30,8 @@ export function useDeviceState() {
     startTime: '',
     duration: '00:00:00',
     events: [],
+    _updateTrigger: 0,
+    _lastEventTime: 0,
   });
 
   const [previousBrakePosition, setPreviousBrakePosition] = useState<string>('None');
@@ -35,6 +39,7 @@ export function useDeviceState() {
   const lastUpdateRef = useRef<number>(0);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const eventUpdateTriggerRef = useRef<number>(0);
+  const forceUpdateCallbacksRef = useRef<Set<() => void>>(new Set());
 
   // Use platform-specific connection hooks
   const androidConnection = useAndroidArduinoConnection();
@@ -110,13 +115,30 @@ export function useDeviceState() {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }, []);
 
-  // CRITICAL FIX: Enhanced session event logging with immediate state updates and forced re-renders
+  // CRITICAL FIX: Force immediate update trigger for all components
+  const triggerImmediateUpdate = useCallback(() => {
+    eventUpdateTriggerRef.current = Date.now();
+    
+    // Trigger all registered callbacks
+    forceUpdateCallbacksRef.current.forEach(callback => {
+      try {
+        callback();
+      } catch (error) {
+        console.error('Error in force update callback:', error);
+      }
+    });
+    
+    console.log('🔄 IMMEDIATE UPDATE TRIGGERED:', eventUpdateTriggerRef.current);
+  }, []);
+
+  // CRITICAL FIX: Enhanced session event logging with IMMEDIATE state updates
   const addSessionEvent = useCallback((event: string, details?: any) => {
     if (!deviceState.sessionActive) return;
     
     const now = new Date();
+    const eventTime = now.getTime();
     const sessionTime = sessionStartTimeRef.current 
-      ? Math.floor((now.getTime() - sessionStartTimeRef.current.getTime()) / 1000)
+      ? Math.floor((eventTime - sessionStartTimeRef.current.getTime()) / 1000)
       : 0;
     
     const timestamp = now.toLocaleTimeString();
@@ -134,30 +156,35 @@ export function useDeviceState() {
       eventWithDetails += ` - Details: ${JSON.stringify(details)}`;
     }
     
-    // CRITICAL FIX: Force immediate state update with trigger increment
-    eventUpdateTriggerRef.current += 1;
+    console.log('🔄 ADDING SESSION EVENT:', eventWithDetails);
     
+    // CRITICAL FIX: Update session data with multiple triggers for immediate updates
     setSessionData(prev => {
       const newEvents = [...prev.events, eventWithDetails];
       const newDuration = calculateDuration();
+      const newUpdateTrigger = Date.now();
       
-      console.log('🔄 IMMEDIATE SESSION EVENT UPDATE:', eventWithDetails);
-      console.log('📊 Total events now:', newEvents.length);
-      console.log('🎯 Update trigger:', eventUpdateTriggerRef.current);
+      console.log('📊 SESSION DATA UPDATE - Events:', newEvents.length, 'Trigger:', newUpdateTrigger);
       
-      // Return completely new object to force React re-render
-      return {
+      const newSessionData: SessionData = {
         startTime: prev.startTime,
         duration: newDuration,
         events: newEvents,
-        // Add trigger to force component updates
-        _updateTrigger: eventUpdateTriggerRef.current,
-      } as SessionData;
+        _updateTrigger: newUpdateTrigger,
+        _lastEventTime: eventTime,
+      };
+      
+      // CRITICAL: Trigger immediate update after state change
+      setTimeout(() => {
+        triggerImmediateUpdate();
+      }, 10);
+      
+      return newSessionData;
     });
     
-  }, [deviceState.sessionActive, responseTime, calculateDuration]);
+  }, [deviceState.sessionActive, responseTime, calculateDuration, triggerImmediateUpdate]);
 
-  // CRITICAL FIX: Enhanced device state updates with immediate event logging and forced re-renders
+  // CRITICAL FIX: Enhanced device state updates with IMMEDIATE event logging
   const updateDeviceState = useCallback(async (updates: Partial<DeviceState>) => {
     const now = Date.now();
     
@@ -185,7 +212,8 @@ export function useDeviceState() {
 
     // CRITICAL FIX: Log events IMMEDIATELY after state update with major state change trigger
     if (deviceState.sessionActive) {
-      Object.entries(updates).forEach(([key, value]) => {
+      // Process each update and add events immediately
+      const eventPromises = Object.entries(updates).map(async ([key, value]) => {
         if (key !== 'sessionActive') {
           const previousValue = previousState[key as keyof DeviceState];
           
@@ -198,7 +226,7 @@ export function useDeviceState() {
               to: value,
               timestamp: new Date().toISOString(),
               connectionStatus: isConnected ? 'online' : 'offline',
-              majorStateChange: true // CRITICAL: Mark as major state change
+              majorStateChange: true
             });
           } else if (key === 'brake') {
             addSessionEvent(`🎮 BRAKE changed: ${previousValue} → ${value}`, { 
@@ -208,7 +236,7 @@ export function useDeviceState() {
               to: value,
               timestamp: new Date().toISOString(),
               connectionStatus: isConnected ? 'online' : 'offline',
-              majorStateChange: true // CRITICAL: Mark as major state change
+              majorStateChange: true
             });
           } else if (key === 'speed') {
             addSessionEvent(`🎮 SPEED changed: ${previousValue}% → ${value}%`, { 
@@ -218,19 +246,23 @@ export function useDeviceState() {
               to: value,
               timestamp: new Date().toISOString(),
               connectionStatus: isConnected ? 'online' : 'offline',
-              majorStateChange: true // CRITICAL: Mark as major state change
+              majorStateChange: true
             });
           }
         }
       });
 
-      // CRITICAL FIX: Force additional state update to trigger all dependent components
+      // Wait for all events to be added, then trigger updates
+      await Promise.all(eventPromises);
+      
+      // CRITICAL FIX: Multiple update triggers to ensure UI updates
       setTimeout(() => {
-        setSessionData(prev => ({
-          ...prev,
-          duration: calculateDuration(),
-          _updateTrigger: eventUpdateTriggerRef.current,
-        } as SessionData));
+        triggerImmediateUpdate();
+        
+        // Additional trigger after a short delay to ensure all components update
+        setTimeout(() => {
+          triggerImmediateUpdate();
+        }, 100);
       }, 50);
     }
 
@@ -344,7 +376,7 @@ export function useDeviceState() {
         });
       }
     }
-  }, [deviceState, isConnected, sendCommand, addSessionEvent, calculateDuration]);
+  }, [deviceState, isConnected, sendCommand, addSessionEvent, calculateDuration, triggerImmediateUpdate]);
 
   const fetchDeviceStatus = useCallback(async () => {
     if (!isConnected) return;
@@ -403,10 +435,13 @@ export function useDeviceState() {
       `⚡ System initialized and ready for operations`
     ];
 
+    const initialUpdateTrigger = Date.now();
     setSessionData({
       startTime: sessionStartTimeStr,
       duration: '00:00:00',
       events: initialEvents,
+      _updateTrigger: initialUpdateTrigger,
+      _lastEventTime: sessionStartTime.getTime(),
     });
 
     // CRITICAL FIX: Start the duration timer with forced updates
@@ -417,15 +452,23 @@ export function useDeviceState() {
     durationIntervalRef.current = setInterval(() => {
       if (sessionStartTimeRef.current) {
         const newDuration = calculateDuration();
-        eventUpdateTriggerRef.current += 1;
+        const newUpdateTrigger = Date.now();
         
         setSessionData(prev => ({
           ...prev,
           duration: newDuration,
-          _updateTrigger: eventUpdateTriggerRef.current,
-        } as SessionData));
+          _updateTrigger: newUpdateTrigger,
+        }));
+        
+        // Trigger immediate update for all components
+        triggerImmediateUpdate();
       }
     }, 1000);
+
+    // Trigger immediate update after session start
+    setTimeout(() => {
+      triggerImmediateUpdate();
+    }, 100);
 
     if (!isConnected) {
       // Add offline mode event
@@ -435,7 +478,7 @@ export function useDeviceState() {
           offline: true,
           majorStateChange: true
         });
-      }, 100);
+      }, 200);
       return;
     }
 
@@ -450,7 +493,7 @@ export function useDeviceState() {
           });
           // Fetch updated status after starting session
           fetchDeviceStatus();
-        }, 100);
+        }, 200);
       }
     } catch (error) {
       setTimeout(() => {
@@ -459,9 +502,9 @@ export function useDeviceState() {
           error: error.message,
           majorStateChange: true
         });
-      }, 100);
+      }, 200);
     }
-  }, [isConnected, sendCommand, addSessionEvent, fetchDeviceStatus, calculateDuration]);
+  }, [isConnected, sendCommand, addSessionEvent, fetchDeviceStatus, calculateDuration, triggerImmediateUpdate]);
 
   const endSession = useCallback(async () => {
     if (!deviceState.sessionActive) return;
@@ -582,6 +625,8 @@ export function useDeviceState() {
       startTime: '',
       duration: '00:00:00',
       events: [],
+      _updateTrigger: 0,
+      _lastEventTime: 0,
     });
   }, [deviceState, isConnected, sendCommand, addSessionEvent, endSession]);
 
@@ -708,6 +753,15 @@ export function useDeviceState() {
     return success;
   }, [testConnection, fetchDeviceStatus]);
 
+  // CRITICAL FIX: Register force update callback system
+  const registerForceUpdateCallback = useCallback((callback: () => void) => {
+    forceUpdateCallbacksRef.current.add(callback);
+    
+    return () => {
+      forceUpdateCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
   // Cleanup duration timer on unmount
   useEffect(() => {
     return () => {
@@ -766,5 +820,6 @@ export function useDeviceState() {
     previousBrakePosition,
     refreshConnection,
     networkDetection,
+    registerForceUpdateCallback, // CRITICAL: Expose callback registration
   };
 }

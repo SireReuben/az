@@ -20,7 +20,8 @@ export default function SessionsScreen() {
     startSession, 
     endSession,
     refreshConnection,
-    networkDetection
+    networkDetection,
+    registerForceUpdateCallback // CRITICAL: Get the callback registration function
   } = useDeviceState();
   
   const { addSessionAlert } = useAlerts();
@@ -136,7 +137,10 @@ export default function SessionsScreen() {
 
               <View style={isTablet && isLandscape ? styles.rightColumn : null}>
                 {deviceState.sessionActive && (
-                  <SessionReport sessionData={sessionData} />
+                  <SessionReport 
+                    sessionData={sessionData} 
+                    registerForceUpdateCallback={registerForceUpdateCallback} // CRITICAL: Pass the callback registration
+                  />
                 )}
                 
                 {/* Connection Quality Indicator */}
