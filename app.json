@@ -56,11 +56,6 @@
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.INTERNET"
       ],
-      "usesCleartextTraffic": true,
-      "allowBackup": false,
-      "requestLegacyExternalStorage": true,
-      "targetSdkVersion": 34,
-      "compileSdkVersion": 34,
       "versionCode": 1
     },
     "web": {
@@ -91,7 +86,7 @@
                   "includeSubdomains": true
                 },
                 {
-                  "domain": "localhost",
+                  "domain": "localhost", 
                   "cleartextTrafficPermitted": true,
                   "includeSubdomains": true
                 },
