@@ -126,7 +126,7 @@ export function useDeviceState() {
     console.log('Session event:', eventWithDetails);
   }, [deviceState.sessionActive, responseTime]);
 
-  // Optimized device state updates with debouncing
+  // Optimized device state updates with proper logging
   const updateDeviceState = useCallback(async (updates: Partial<DeviceState>) => {
     const now = Date.now();
     
@@ -136,6 +136,9 @@ export function useDeviceState() {
       return;
     }
     lastUpdateRef.current = now;
+
+    // Store previous values for logging
+    const previousState = { ...deviceState };
 
     // Store previous brake position before updating
     if (updates.brake !== undefined && deviceState.brake !== 'None') {
@@ -152,9 +155,22 @@ export function useDeviceState() {
     if (deviceState.sessionActive) {
       Object.entries(updates).forEach(([key, value]) => {
         if (key !== 'sessionActive') {
-          const previousValue = deviceState[key as keyof DeviceState];
+          const previousValue = previousState[key as keyof DeviceState];
+          
+          // Enhanced logging for different control types
+          let logMessage = '';
+          if (key === 'direction') {
+            logMessage = `DIRECTION changed: ${previousValue} → ${value}`;
+          } else if (key === 'brake') {
+            logMessage = `BRAKE changed: ${previousValue} → ${value}`;
+          } else if (key === 'speed') {
+            logMessage = `SPEED changed: ${previousValue}% → ${value}%`;
+          } else {
+            logMessage = `${key.toUpperCase()} changed: ${previousValue} → ${value}`;
+          }
+          
           addSessionEvent(
-            `${key.toUpperCase()} changed: ${previousValue} → ${value}`,
+            logMessage,
             { 
               control: key, 
               from: previousValue, 

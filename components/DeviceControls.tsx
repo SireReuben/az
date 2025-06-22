@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { ArrowUp, ArrowDown, Square, TriangleAlert as AlertTriangle, Minus, Plus } from 'lucide-react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
@@ -41,25 +41,6 @@ export function DeviceControls({
       }),
     };
   });
-
-  // Optimized button press animations
-  const createButtonAnimation = useCallback(() => {
-    const scale = useSharedValue(1);
-    
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
-    const onPressIn = () => {
-      scale.value = withTiming(0.95, { duration: 100 });
-    };
-
-    const onPressOut = () => {
-      scale.value = withSpring(1, { damping: 10, stiffness: 200 });
-    };
-
-    return { animatedStyle, onPressIn, onPressOut };
-  }, []);
 
   // Memoized handlers for better performance
   const handleDirectionChange = useCallback((direction: string) => {
@@ -109,7 +90,7 @@ export function DeviceControls({
           text: 'Confirm', 
           onPress: () => {
             setSliderValue(speed);
-            speedBarWidth.value = speed;
+            speedBarWidth.value = withTiming(speed, { duration: 300 });
             onUpdateState({ speed });
           }
         },
@@ -128,7 +109,7 @@ export function DeviceControls({
         { 
           text: 'Confirm', 
           onPress: () => {
-            speedBarWidth.value = sliderValue;
+            speedBarWidth.value = withTiming(sliderValue, { duration: 300 });
             onUpdateState({ speed: sliderValue });
           }
         },
@@ -188,13 +169,13 @@ export function DeviceControls({
     );
   }, [disabled, onReleaseBrake]);
 
-  // Update slider when device state changes (optimized)
-  React.useEffect(() => {
+  // Update slider when device state changes (fixed synchronization)
+  useEffect(() => {
     if (deviceState.speed !== sliderValue) {
       setSliderValue(deviceState.speed);
       speedBarWidth.value = withTiming(deviceState.speed, { duration: 300 });
     }
-  }, [deviceState.speed, sliderValue, speedBarWidth]);
+  }, [deviceState.speed]);
 
   // Memoized layout calculations
   const layoutStyles = useMemo(() => {
@@ -487,7 +468,7 @@ export function DeviceControls({
                   style={[
                     styles.sliderThumb,
                     isTablet && styles.tabletSliderThumb,
-                    { left: `${sliderValue}%` }
+                    { left: `${Math.max(0, Math.min(100, sliderValue))}%` }
                   ]} 
                 />
               </View>
