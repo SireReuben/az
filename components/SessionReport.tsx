@@ -19,27 +19,41 @@ export function SessionReport({ sessionData }: SessionReportProps) {
   const [forceUpdate, setForceUpdate] = useState(0);
   const [lastEventCount, setLastEventCount] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // CRITICAL FIX: Dedicated refresh trigger
 
-  // Manual refresh function
+  // CRITICAL FIX: Enhanced manual refresh function that forces complete recalculation
   const handleManualRefresh = useCallback(() => {
     setIsRefreshing(true);
-    console.log('🔄 Manual refresh triggered for Session Report');
+    console.log('🔄 MANUAL REFRESH: Forcing complete Session Report update');
+    console.log('📊 MANUAL REFRESH: Current events count:', sessionData.events.length);
+    console.log('🎯 MANUAL REFRESH: Current stats will be recalculated');
     
-    // Force immediate update
+    // CRITICAL: Force ALL state updates simultaneously
+    const newRefreshTrigger = Date.now();
+    setRefreshTrigger(newRefreshTrigger);
     setForceUpdate(prev => prev + 1);
     setLastEventCount(sessionData.events.length);
     
-    // Visual feedback
+    // Log current events for debugging
+    sessionData.events.forEach((event, index) => {
+      if (event.includes('🎮') || event.includes('🚨') || event.includes('changed:')) {
+        console.log(`🔍 MANUAL REFRESH: Event ${index + 1}:`, event);
+      }
+    });
+    
+    // Visual feedback with longer duration to ensure state propagation
     setTimeout(() => {
       setIsRefreshing(false);
-    }, 500);
-  }, [sessionData.events.length]);
+      console.log('✅ MANUAL REFRESH: Complete - UI should now show updated statistics');
+    }, 800);
+  }, [sessionData.events]);
 
-  // CRITICAL FIX: Multiple triggers for real-time updates
+  // CRITICAL FIX: Multiple triggers for real-time updates with refresh trigger
   useEffect(() => {
     console.log('🔄 SessionReport: Events updated, count:', sessionData.events.length);
     console.log('🎯 SessionReport: Duration:', sessionData.duration);
     console.log('📊 SessionReport: Update trigger:', (sessionData as any)._updateTrigger);
+    console.log('🔄 SessionReport: Refresh trigger:', refreshTrigger);
     
     // Force re-render on any change
     setForceUpdate(prev => prev + 1);
@@ -48,7 +62,8 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     sessionData.events.length, 
     sessionData.duration, 
     sessionData.startTime,
-    (sessionData as any)._updateTrigger // Internal trigger from useDeviceState
+    (sessionData as any)._updateTrigger, // Internal trigger from useDeviceState
+    refreshTrigger // CRITICAL: Include refresh trigger
   ]);
 
   // CRITICAL FIX: Additional trigger for event content changes
@@ -78,77 +93,118 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     };
   }, [sessionData.events.length, sessionData.duration]);
 
-  // Enhanced session statistics with real-time updates and comprehensive pattern matching
+  // CRITICAL FIX: Enhanced session statistics with refresh trigger dependency
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
     console.log('📈 SessionReport: Calculating stats for', events.length, 'events');
     console.log('🔍 SessionReport: Force update counter:', forceUpdate);
+    console.log('🔄 SessionReport: Refresh trigger:', refreshTrigger);
     
-    // Control operations - comprehensive pattern matching
-    const controlEvents = events.filter(event => 
-      event.includes('🎮 DIRECTION changed') ||
-      event.includes('🎮 BRAKE changed') ||
-      event.includes('🎮 SPEED changed') ||
-      event.includes('🎮 BRAKE RELEASE') ||
-      event.includes('DIRECTION changed') ||
-      event.includes('BRAKE changed') ||
-      event.includes('SPEED changed') ||
-      event.includes('Brake release') ||
-      event.includes('Direction set') ||
-      event.includes('Speed set') ||
-      event.includes('control_operation')
-    ).length;
+    // CRITICAL: Log all events that should be counted as control operations
+    const controlEventPatterns = [
+      '🎮 DIRECTION changed',
+      '🎮 BRAKE changed', 
+      '🎮 SPEED changed',
+      '🎮 BRAKE RELEASE',
+      'DIRECTION changed',
+      'BRAKE changed',
+      'SPEED changed',
+      'Brake release',
+      'Direction set',
+      'Speed set',
+      'control_operation'
+    ];
+    
+    const controlEvents = events.filter(event => {
+      const isControlEvent = controlEventPatterns.some(pattern => event.includes(pattern));
+      if (isControlEvent) {
+        console.log('🎮 CONTROL EVENT FOUND:', event);
+      }
+      return isControlEvent;
+    }).length;
     
     // System events - comprehensive pattern matching
-    const systemEvents = events.filter(event => 
-      event.includes('🚀 SESSION STARTED') ||
-      event.includes('🏁 SESSION ENDED') ||
-      event.includes('📱 Platform:') ||
-      event.includes('🌐 Connection:') ||
-      event.includes('🔧 Device IP:') ||
-      event.includes('🆔 Session ID:') ||
-      event.includes('⚡ System initialized') ||
-      event.includes('✅ Connected to Arduino') ||
-      event.includes('⚠️ Operating in offline mode') ||
-      event.includes('💾 Session data saved') ||
-      event.includes('system_event') ||
-      event.includes('SESSION')
-    ).length;
+    const systemEventPatterns = [
+      '🚀 SESSION STARTED',
+      '🏁 SESSION ENDED',
+      '📱 Platform:',
+      '🌐 Connection:',
+      '🔧 Device IP:',
+      '🆔 Session ID:',
+      '⚡ System initialized',
+      '✅ Connected to Arduino',
+      '⚠️ Operating in offline mode',
+      '💾 Session data saved',
+      'system_event',
+      'SESSION'
+    ];
+    
+    const systemEvents = events.filter(event => {
+      const isSystemEvent = systemEventPatterns.some(pattern => event.includes(pattern));
+      if (isSystemEvent) {
+        console.log('🚀 SYSTEM EVENT FOUND:', event);
+      }
+      return isSystemEvent;
+    }).length;
     
     // Emergency events - comprehensive pattern matching
-    const emergencyEvents = events.filter(event => 
-      event.includes('🚨 EMERGENCY STOP ACTIVATED') ||
-      event.includes('🚨 DEVICE RESET initiated') ||
-      event.includes('⛔ Emergency action:') ||
-      event.includes('⏰ Emergency stop time:') ||
-      event.includes('🔄 DEVICE RESET') ||
-      event.includes('Emergency') ||
-      event.includes('emergency_event') ||
-      event.includes('EMERGENCY')
-    ).length;
+    const emergencyEventPatterns = [
+      '🚨 EMERGENCY STOP ACTIVATED',
+      '🚨 DEVICE RESET initiated',
+      '⛔ Emergency action:',
+      '⏰ Emergency stop time:',
+      '🔄 DEVICE RESET',
+      'Emergency',
+      'emergency_event',
+      'EMERGENCY'
+    ];
+    
+    const emergencyEvents = events.filter(event => {
+      const isEmergencyEvent = emergencyEventPatterns.some(pattern => event.includes(pattern));
+      if (isEmergencyEvent) {
+        console.log('🚨 EMERGENCY EVENT FOUND:', event);
+      }
+      return isEmergencyEvent;
+    }).length;
 
     // Arduino communication events
-    const arduinoEvents = events.filter(event =>
-      event.includes('✅ Arduino command sent') ||
-      event.includes('❌ Arduino command failed') ||
-      event.includes('📡 Device response:') ||
-      event.includes('Arduino') ||
-      event.includes('device communication') ||
-      event.includes('arduino_command') ||
-      event.includes('arduino_error')
-    ).length;
+    const arduinoEventPatterns = [
+      '✅ Arduino command sent',
+      '❌ Arduino command failed',
+      '📡 Device response:',
+      'Arduino',
+      'device communication',
+      'arduino_command',
+      'arduino_error'
+    ];
+    
+    const arduinoEvents = events.filter(event => {
+      const isArduinoEvent = arduinoEventPatterns.some(pattern => event.includes(pattern));
+      if (isArduinoEvent) {
+        console.log('📡 ARDUINO EVENT FOUND:', event);
+      }
+      return isArduinoEvent;
+    }).length;
 
     // Safety events - comprehensive pattern matching
-    const safetyEvents = events.filter(event =>
-      event.includes('🛡️ Safety protocol:') ||
-      event.includes('🔒 Brake position reset') ||
-      event.includes('🔓 Brake operation:') ||
-      event.includes('Brake position preserved') ||
-      event.includes('Brake position maintained') ||
-      event.includes('Safety protocol') ||
-      event.includes('safety') ||
-      event.includes('safety_event')
-    ).length;
+    const safetyEventPatterns = [
+      '🛡️ Safety protocol:',
+      '🔒 Brake position reset',
+      '🔓 Brake operation:',
+      'Brake position preserved',
+      'Brake position maintained',
+      'Safety protocol',
+      'safety',
+      'safety_event'
+    ];
+    
+    const safetyEvents = events.filter(event => {
+      const isSafetyEvent = safetyEventPatterns.some(pattern => event.includes(pattern));
+      if (isSafetyEvent) {
+        console.log('🛡️ SAFETY EVENT FOUND:', event);
+      }
+      return isSafetyEvent;
+    }).length;
 
     const stats = {
       totalEvents: events.length,
@@ -159,20 +215,32 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       safetyEvents
     };
 
-    console.log('📊 SessionReport: Stats calculated -', stats);
+    console.log('📊 SessionReport: FINAL CALCULATED STATS -', stats);
+    console.log('🎮 Control Events:', controlEvents);
+    console.log('🚀 System Events:', systemEvents);
+    console.log('🚨 Emergency Events:', emergencyEvents);
+    console.log('📡 Arduino Events:', arduinoEvents);
+    console.log('🛡️ Safety Events:', safetyEvents);
+    
     return stats;
-  }, [sessionData.events, forceUpdate, lastEventCount]); // Include all triggers
+  }, [
+    sessionData.events, 
+    forceUpdate, 
+    lastEventCount, 
+    refreshTrigger // CRITICAL: Include refresh trigger in dependencies
+  ]);
 
-  // CRITICAL FIX: Memoize with proper dependencies to force recalculation
+  // CRITICAL FIX: Memoize with proper dependencies including refresh trigger
   const memoizedEvents = useMemo(() => {
     console.log('🔄 SessionReport: Memoizing events, count:', sessionData.events.length);
+    console.log('🔄 SessionReport: Refresh trigger in memoization:', refreshTrigger);
     return sessionData.events.map((event, index) => ({
-      id: `event-${index}-${forceUpdate}-${Date.now()}`, // Unique key for each render
+      id: `event-${index}-${forceUpdate}-${refreshTrigger}-${Date.now()}`, // Include refresh trigger in key
       index,
       content: event,
       timestamp: Date.now()
     }));
-  }, [sessionData.events, forceUpdate]);
+  }, [sessionData.events, forceUpdate, refreshTrigger]); // Include refresh trigger
 
   const generateReportText = useCallback(() => {
     const reportHeader = `AEROSPIN SESSION REPORT
@@ -271,7 +339,7 @@ AEROSPIN Global Control System`;
           Live Session Report
         </Text>
         <View style={styles.buttonGroup}>
-          {/* Manual Refresh Button */}
+          {/* Enhanced Manual Refresh Button */}
           <TouchableOpacity
             style={[
               styles.actionButton,
@@ -507,7 +575,7 @@ AEROSPIN Global Control System`;
           styles.updateIndicator,
           isTablet && styles.tabletUpdateIndicator
         ]}>
-          Update #{forceUpdate}
+          Update #{forceUpdate} | Refresh #{refreshTrigger}
         </Text>
       </View>
       
