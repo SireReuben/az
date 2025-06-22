@@ -22,47 +22,42 @@ export function SessionReport({ sessionData }: SessionReportProps) {
     
     // Control operations (direction, brake, speed changes)
     const controlEvents = events.filter(event => 
-      event.includes('DIRECTION CONTROL') || 
-      event.includes('BRAKE CONTROL') || 
-      event.includes('SPEED CONTROL') ||
-      event.includes('BRAKE RELEASE')
+      event.includes('CONTROL OPERATION') ||
+      event.includes('🎮')
     ).length;
     
     // System events (connections, status updates, etc.)
     const systemEvents = events.filter(event => 
-      event.includes('SESSION STARTED') || 
+      event.includes('SYSTEM EVENT') || 
+      event.includes('SESSION STARTED') ||
       event.includes('SESSION ENDED') ||
-      event.includes('Connected to Arduino') || 
-      event.includes('Operating in offline') ||
-      event.includes('System initialized') ||
-      event.includes('Arduino command sent') ||
-      event.includes('Device response')
+      event.includes('🚀') ||
+      event.includes('🏁') ||
+      event.includes('✅') ||
+      event.includes('💾')
     ).length;
     
     // Emergency events (emergency stops, resets, safety protocols)
     const emergencyEvents = events.filter(event => 
-      event.includes('EMERGENCY STOP') || 
-      event.includes('DEVICE RESET') ||
+      event.includes('EMERGENCY EVENT') || 
       event.includes('🚨') ||
       event.includes('⛔') ||
-      event.includes('🔄') ||
-      event.includes('Safety protocol') ||
-      event.includes('Emergency action')
+      event.includes('⚠️')
     ).length;
 
     // Arduino communication events
     const arduinoEvents = events.filter(event =>
-      event.includes('Arduino command') ||
-      event.includes('Device response') ||
-      event.includes('Arduino device')
+      event.includes('ARDUINO COMMAND') ||
+      event.includes('ARDUINO ERROR') ||
+      event.includes('📡')
     ).length;
 
     // Safety events
     const safetyEvents = events.filter(event =>
-      event.includes('Safety protocol') ||
-      event.includes('Brake position') ||
+      event.includes('SAFETY EVENT') ||
       event.includes('🛡️') ||
-      event.includes('🔒')
+      event.includes('🔒') ||
+      event.includes('🔓')
     ).length;
 
     return {
@@ -90,7 +85,7 @@ Emergency Events: ${sessionStats.emergencyEvents}
 Arduino Communications: ${sessionStats.arduinoEvents}
 Safety Events: ${sessionStats.safetyEvents}
 
-SESSION EVENTS:
+DETAILED SESSION EVENTS:
 `;
 
     const eventsText = sessionData.events.length > 0 
@@ -99,6 +94,14 @@ SESSION EVENTS:
 
     const reportFooter = `
 ${'='.repeat(50)}
+SUMMARY:
+- Session Duration: ${sessionData.duration}
+- Total Operations: ${sessionStats.controlEvents}
+- Emergency Actions: ${sessionStats.emergencyEvents}
+- System Status: ${sessionStats.systemEvents > 0 ? 'Active' : 'Inactive'}
+- Arduino Communication: ${sessionStats.arduinoEvents > 0 ? 'Successful' : 'No Communication'}
+- Safety Protocols: ${sessionStats.safetyEvents > 0 ? 'Engaged' : 'Standard'}
+
 End of Report
 AEROSPIN Global Control System`;
 
@@ -114,7 +117,7 @@ AEROSPIN Global Control System`;
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `AEROSPIN_Session_Report_${new Date().toISOString().split('T')[0]}.txt`;
+        link.download = `AEROSPIN_Session_Report_${new Date().toISOString().split('T')[0]}_${sessionData.duration.replace(/:/g, '-')}.txt`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -393,10 +396,10 @@ AEROSPIN Global Control System`;
                 styles.eventText,
                 isTablet && styles.tabletEventText,
                 // Enhanced event styling based on content
-                (event.includes('🚨') || event.includes('EMERGENCY')) && styles.emergencyEvent,
-                (event.includes('DIRECTION CONTROL') || event.includes('BRAKE CONTROL') || event.includes('SPEED CONTROL')) && styles.controlEvent,
-                (event.includes('Arduino command') || event.includes('Device response')) && styles.arduinoEvent,
-                (event.includes('Safety protocol') || event.includes('🛡️')) && styles.safetyEvent,
+                (event.includes('🚨') || event.includes('EMERGENCY EVENT')) && styles.emergencyEvent,
+                (event.includes('🎮') || event.includes('CONTROL OPERATION')) && styles.controlEvent,
+                (event.includes('ARDUINO COMMAND') || event.includes('ARDUINO ERROR')) && styles.arduinoEvent,
+                (event.includes('SAFETY EVENT') || event.includes('🛡️')) && styles.safetyEvent,
                 (event.includes('SESSION STARTED') || event.includes('SESSION ENDED')) && styles.sessionEvent,
               ]}>
                 {event}
