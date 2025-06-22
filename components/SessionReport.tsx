@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Platform } from 'react-native';
 import { FileText, Download, Share2, Clock, Activity, Zap, TriangleAlert as AlertTriangle, Settings, Shield } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
@@ -15,8 +15,18 @@ interface SessionReportProps {
 
 export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
+  const [lastEventCount, setLastEventCount] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Enhanced session statistics with proper event detection
+  // Force re-render when events are added
+  useEffect(() => {
+    if (sessionData.events.length !== lastEventCount) {
+      setLastEventCount(sessionData.events.length);
+      setForceUpdate(prev => prev + 1);
+    }
+  }, [sessionData.events.length, lastEventCount]);
+
+  // Enhanced session statistics with proper event detection and real-time updates
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
     
@@ -80,7 +90,7 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       arduinoEvents,
       safetyEvents
     };
-  }, [sessionData.events]);
+  }, [sessionData.events, forceUpdate]); // Add forceUpdate to dependencies
 
   const generateReportText = () => {
     const reportHeader = `AEROSPIN SESSION REPORT
@@ -394,7 +404,7 @@ AEROSPIN Global Control System`;
       >
         {sessionData.events.length > 0 ? (
           sessionData.events.map((event, index) => (
-            <View key={index} style={[
+            <View key={`${index}-${event.substring(0, 20)}`} style={[
               styles.eventItem,
               isTablet && styles.tabletEventItem
             ]}>
