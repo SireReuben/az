@@ -15,18 +15,12 @@ interface SessionReportProps {
 
 export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
-  const [lastEventCount, setLastEventCount] = useState(0);
-  const [lastDuration, setLastDuration] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [forceUpdate, setForceUpdate] = useState(0);
 
-  // Force component refresh when events or duration change
+  // Force re-render whenever sessionData changes
   useEffect(() => {
-    if (sessionData.events.length !== lastEventCount || sessionData.duration !== lastDuration) {
-      setLastEventCount(sessionData.events.length);
-      setLastDuration(sessionData.duration);
-      setRefreshKey(prev => prev + 1);
-    }
-  }, [sessionData.events.length, sessionData.duration, lastEventCount, lastDuration]);
+    setForceUpdate(prev => prev + 1);
+  }, [sessionData.events.length, sessionData.duration, sessionData.startTime]);
 
   // Enhanced session statistics with real-time updates
   const sessionStats = useMemo(() => {
@@ -92,7 +86,7 @@ export function SessionReport({ sessionData }: SessionReportProps) {
       arduinoEvents,
       safetyEvents
     };
-  }, [sessionData.events, refreshKey]); // Include refreshKey to force recalculation
+  }, [sessionData.events, forceUpdate]); // Include forceUpdate to trigger recalculation
 
   const generateReportText = () => {
     const reportHeader = `AEROSPIN SESSION REPORT
@@ -406,7 +400,7 @@ AEROSPIN Global Control System`;
       >
         {sessionData.events.length > 0 ? (
           sessionData.events.map((event, index) => (
-            <View key={`${refreshKey}-${index}-${event.substring(0, 20)}`} style={[
+            <View key={`event-${index}-${forceUpdate}`} style={[
               styles.eventItem,
               isTablet && styles.tabletEventItem
             ]}>
