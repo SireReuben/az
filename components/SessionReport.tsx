@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Platform } from 'react-native';
-import { FileText, Download, Share2, Clock, Activity, Zap } from 'lucide-react-native';
+import { FileText, Download, Share2, Clock, Activity, Zap, AlertTriangle, Settings, Shield } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
 interface SessionData {
@@ -16,31 +16,62 @@ interface SessionReportProps {
 export function SessionReport({ sessionData }: SessionReportProps) {
   const { isTablet } = useDeviceOrientation();
 
-  // Memoize session statistics for better performance
+  // Enhanced session statistics with better categorization
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
+    
+    // Control operations (direction, brake, speed changes)
     const controlEvents = events.filter(event => 
-      event.includes('DIRECTION') || 
-      event.includes('BRAKE') || 
-      event.includes('SPEED')
+      event.includes('DIRECTION CONTROL') || 
+      event.includes('BRAKE CONTROL') || 
+      event.includes('SPEED CONTROL') ||
+      event.includes('BRAKE RELEASE')
     ).length;
     
+    // System events (connections, status updates, etc.)
     const systemEvents = events.filter(event => 
-      event.includes('Session') || 
-      event.includes('Connected') || 
-      event.includes('Operating')
+      event.includes('SESSION STARTED') || 
+      event.includes('SESSION ENDED') ||
+      event.includes('Connected to Arduino') || 
+      event.includes('Operating in offline') ||
+      event.includes('System initialized') ||
+      event.includes('Arduino command sent') ||
+      event.includes('Device response')
     ).length;
     
+    // Emergency events (emergency stops, resets, safety protocols)
     const emergencyEvents = events.filter(event => 
-      event.includes('EMERGENCY') || 
-      event.includes('🚨')
+      event.includes('EMERGENCY STOP') || 
+      event.includes('DEVICE RESET') ||
+      event.includes('🚨') ||
+      event.includes('⛔') ||
+      event.includes('🔄') ||
+      event.includes('Safety protocol') ||
+      event.includes('Emergency action')
+    ).length;
+
+    // Arduino communication events
+    const arduinoEvents = events.filter(event =>
+      event.includes('Arduino command') ||
+      event.includes('Device response') ||
+      event.includes('Arduino device')
+    ).length;
+
+    // Safety events
+    const safetyEvents = events.filter(event =>
+      event.includes('Safety protocol') ||
+      event.includes('Brake position') ||
+      event.includes('🛡️') ||
+      event.includes('🔒')
     ).length;
 
     return {
       totalEvents: events.length,
       controlEvents,
       systemEvents,
-      emergencyEvents
+      emergencyEvents,
+      arduinoEvents,
+      safetyEvents
     };
   }, [sessionData.events]);
 
@@ -56,6 +87,8 @@ Total Events: ${sessionStats.totalEvents}
 Control Operations: ${sessionStats.controlEvents}
 System Events: ${sessionStats.systemEvents}
 Emergency Events: ${sessionStats.emergencyEvents}
+Arduino Communications: ${sessionStats.arduinoEvents}
+Safety Events: ${sessionStats.safetyEvents}
 
 SESSION EVENTS:
 `;
@@ -235,7 +268,7 @@ AEROSPIN Global Control System`;
         </View>
       </View>
 
-      {/* Session Statistics */}
+      {/* Enhanced Session Statistics */}
       <View style={[
         styles.statsContainer,
         isTablet && styles.tabletStatsContainer
@@ -244,13 +277,14 @@ AEROSPIN Global Control System`;
           styles.statsTitle,
           isTablet && styles.tabletStatsTitle
         ]}>
-          Session Statistics
+          Detailed Session Statistics
         </Text>
         <View style={[
           styles.statsGrid,
           isTablet && styles.tabletStatsGrid
         ]}>
           <View style={styles.statItem}>
+            <Zap size={16} color="#3b82f6" />
             <Text style={[
               styles.statValue,
               isTablet && styles.tabletStatValue
@@ -265,6 +299,7 @@ AEROSPIN Global Control System`;
             </Text>
           </View>
           <View style={styles.statItem}>
+            <Settings size={16} color="#22c55e" />
             <Text style={[
               styles.statValue,
               isTablet && styles.tabletStatValue
@@ -279,6 +314,7 @@ AEROSPIN Global Control System`;
             </Text>
           </View>
           <View style={styles.statItem}>
+            <AlertTriangle size={16} color="#ef4444" />
             <Text style={[
               styles.statValue,
               isTablet && styles.tabletStatValue,
@@ -293,6 +329,36 @@ AEROSPIN Global Control System`;
               Emergency Events
             </Text>
           </View>
+          <View style={styles.statItem}>
+            <Activity size={16} color="#8b5cf6" />
+            <Text style={[
+              styles.statValue,
+              isTablet && styles.tabletStatValue
+            ]}>
+              {sessionStats.arduinoEvents}
+            </Text>
+            <Text style={[
+              styles.statLabel,
+              isTablet && styles.tabletStatLabel
+            ]}>
+              Arduino Comms
+            </Text>
+          </View>
+          <View style={styles.statItem}>
+            <Shield size={16} color="#06b6d4" />
+            <Text style={[
+              styles.statValue,
+              isTablet && styles.tabletStatValue
+            ]}>
+              {sessionStats.safetyEvents}
+            </Text>
+            <Text style={[
+              styles.statLabel,
+              isTablet && styles.tabletStatLabel
+            ]}>
+              Safety Events
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -301,7 +367,7 @@ AEROSPIN Global Control System`;
         styles.eventsTitle,
         isTablet && styles.tabletEventsTitle
       ]}>
-        Live Events Log
+        Live Events Log ({sessionStats.totalEvents} events)
       </Text>
       <ScrollView 
         style={[
@@ -326,10 +392,12 @@ AEROSPIN Global Control System`;
               <Text style={[
                 styles.eventText,
                 isTablet && styles.tabletEventText,
-                event.includes('🚨') && styles.emergencyEvent,
-                event.includes('DIRECTION') && styles.controlEvent,
-                event.includes('BRAKE') && styles.controlEvent,
-                event.includes('SPEED') && styles.controlEvent,
+                // Enhanced event styling based on content
+                (event.includes('🚨') || event.includes('EMERGENCY')) && styles.emergencyEvent,
+                (event.includes('DIRECTION CONTROL') || event.includes('BRAKE CONTROL') || event.includes('SPEED CONTROL')) && styles.controlEvent,
+                (event.includes('Arduino command') || event.includes('Device response')) && styles.arduinoEvent,
+                (event.includes('Safety protocol') || event.includes('🛡️')) && styles.safetyEvent,
+                (event.includes('SESSION STARTED') || event.includes('SESSION ENDED')) && styles.sessionEvent,
               ]}>
                 {event}
               </Text>
@@ -485,32 +553,36 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-around',
+    gap: 12,
   },
   tabletStatsGrid: {
-    gap: 20,
+    gap: 16,
   },
   statItem: {
     alignItems: 'center',
+    minWidth: 80,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: '#1e40af',
     marginBottom: 4,
+    marginTop: 4,
   },
   tabletStatValue: {
-    fontSize: 24,
+    fontSize: 22,
     marginBottom: 6,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Inter-Medium',
     color: '#6b7280',
     textAlign: 'center',
   },
   tabletStatLabel: {
-    fontSize: 13,
+    fontSize: 12,
   },
   eventsTitle: {
     fontSize: 16,
@@ -572,6 +644,18 @@ const styles = StyleSheet.create({
   },
   emergencyEvent: {
     color: '#dc2626',
+    fontFamily: 'Inter-Bold',
+  },
+  arduinoEvent: {
+    color: '#8b5cf6',
+    fontFamily: 'Inter-Medium',
+  },
+  safetyEvent: {
+    color: '#06b6d4',
+    fontFamily: 'Inter-Medium',
+  },
+  sessionEvent: {
+    color: '#22c55e',
     fontFamily: 'Inter-Bold',
   },
   noEventsContainer: {
