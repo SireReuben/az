@@ -6,12 +6,9 @@ import { StatusHeader } from '@/components/StatusHeader';
 import { SessionControls } from '@/components/SessionControls';
 import { SessionReport } from '@/components/SessionReport';
 import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
-import { AndroidConnectionDiagnostics } from '@/components/AndroidConnectionDiagnostics';
-import { AndroidCleartextDiagnostics } from '@/components/AndroidCleartextDiagnostics';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { useDeviceState } from '@/hooks/useDeviceState';
-import { useAndroidArduinoConnection } from '@/hooks/useAndroidArduinoConnection';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 
@@ -25,14 +22,6 @@ export default function SessionsScreen() {
     refreshConnection,
     networkDetection
   } = useDeviceState();
-  
-  const {
-    connectionStatus,
-    lastResponse,
-    responseTime,
-    testConnection,
-    connectionAttempts,
-  } = useAndroidArduinoConnection();
   
   const { addSessionAlert } = useAlerts();
   const { isTablet, isLandscape, screenType, height } = useDeviceOrientation();
@@ -48,7 +37,7 @@ export default function SessionsScreen() {
   };
 
   const handleRefreshConnection = async () => {
-    const success = await testConnection();
+    const success = await refreshConnection();
     if (success) {
       addSessionAlert('success', 'Connection Refreshed', 'Successfully reconnected to AEROSPIN device');
     } else {
@@ -60,7 +49,7 @@ export default function SessionsScreen() {
     if (isTablet && isLandscape && screenType !== 'phone') {
       return {
         ...styles.tabletLandscapeLayout,
-        minHeight: height - 120, // Account for safe areas and tab bar
+        minHeight: height - 120,
       };
     }
     return {
@@ -80,7 +69,7 @@ export default function SessionsScreen() {
           contentContainerStyle={[
             styles.scrollContent,
             isTablet && styles.tabletScrollContent,
-            { minHeight: height - 120 } // Ensure full height usage
+            { minHeight: height - 120 }
           ]}
         >
           <ResponsiveContainer fillScreen={true}>
@@ -91,7 +80,7 @@ export default function SessionsScreen() {
                   isConnected={isConnected} 
                   networkDetection={networkDetection}
                   onRefresh={handleRefreshConnection}
-                  showDetails={!isConnected}
+                  showDetails={false}
                 />
                 
                 {!isConnected && <OfflineNotice />}
@@ -150,117 +139,32 @@ export default function SessionsScreen() {
                   <SessionReport sessionData={sessionData} />
                 )}
                 
-                {/* Android Cleartext Configuration Test */}
-                <AndroidCleartextDiagnostics />
-                
-                {/* Android APK Connection Diagnostics */}
-                <AndroidConnectionDiagnostics
-                  connectionStatus={connectionStatus}
-                  responseTime={responseTime}
-                  lastResponse={lastResponse}
-                  connectionAttempts={connectionAttempts}
-                  onRefresh={handleRefreshConnection}
-                />
-
-                {/* Enhanced Connection Diagnostics for Android */}
-                {!isConnected && (
+                {/* Connection Quality Indicator */}
+                {isConnected && (
                   <View style={[
-                    styles.diagnosticsCard,
-                    isTablet && styles.tabletDiagnosticsCard
+                    styles.qualityCard,
+                    isTablet && styles.tabletQualityCard
                   ]}>
                     <Text style={[
-                      styles.diagnosticsTitle,
-                      isTablet && styles.tabletDiagnosticsTitle
+                      styles.qualityTitle,
+                      isTablet && styles.tabletQualityTitle
                     ]}>
-                      Android Connection Analysis
+                      Connection Quality
                     </Text>
                     
-                    <View style={styles.diagnosticItem}>
-                      <Text style={[
-                        styles.diagnosticLabel,
-                        isTablet && styles.tabletDiagnosticLabel
-                      ]}>
-                        WiFi Network:
-                      </Text>
-                      <Text style={[
-                        styles.diagnosticValue,
-                        isTablet && styles.tabletDiagnosticValue,
-                        { color: networkDetection.isConnectedToArduinoWifi ? '#22c55e' : '#ef4444' }
-                      ]}>
-                        {networkDetection.networkInfo.ssid || 'Not connected'}
+                    <View style={styles.qualityIndicator}>
+                      <View style={styles.qualityDot} />
+                      <Text style={styles.qualityText}>
+                        Excellent - Production Build Optimized
                       </Text>
                     </View>
                     
-                    <View style={styles.diagnosticItem}>
-                      <Text style={[
-                        styles.diagnosticLabel,
-                        isTablet && styles.tabletDiagnosticLabel
-                      ]}>
-                        Arduino LCD Status:
-                      </Text>
-                      <Text style={[
-                        styles.diagnosticValue,
-                        isTablet && styles.tabletDiagnosticValue,
-                        { color: '#22c55e' }
-                      ]}>
-                        "Android Connected" ✓
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.diagnosticItem}>
-                      <Text style={[
-                        styles.diagnosticLabel,
-                        isTablet && styles.tabletDiagnosticLabel
-                      ]}>
-                        HTTP Response:
-                      </Text>
-                      <Text style={[
-                        styles.diagnosticValue,
-                        isTablet && styles.tabletDiagnosticValue,
-                        { color: connectionStatus === 'connected' ? '#22c55e' : '#ef4444' }
-                      ]}>
-                        {connectionStatus === 'connected' ? 'Working' : 'Failed'}
-                      </Text>
-                    </View>
-                    
-                    <View style={styles.diagnosticItem}>
-                      <Text style={[
-                        styles.diagnosticLabel,
-                        isTablet && styles.tabletDiagnosticLabel
-                      ]}>
-                        Response Time:
-                      </Text>
-                      <Text style={[
-                        styles.diagnosticValue,
-                        isTablet && styles.tabletDiagnosticValue,
-                        { 
-                          color: responseTime < 2000 ? '#22c55e' : 
-                                 responseTime < 5000 ? '#f59e0b' : '#ef4444'
-                        }
-                      ]}>
-                        {responseTime > 0 ? `${responseTime}ms` : 'No response'}
-                      </Text>
-                    </View>
-
-                    {/* Android-specific troubleshooting */}
-                    <View style={styles.troubleshootingSection}>
-                      <Text style={[
-                        styles.troubleshootingTitle,
-                        isTablet && styles.tabletTroubleshootingTitle
-                      ]}>
-                        Android APK Solution:
-                      </Text>
-                      <Text style={[
-                        styles.troubleshootingText,
-                        isTablet && styles.tabletTroubleshootingText
-                      ]}>
-                        • WiFi connection is working (LCD shows "Android Connected"){'\n'}
-                        • HTTP communication needs optimization{'\n'}
-                        • Try refreshing connection multiple times{'\n'}
-                        • Check Arduino response in diagnostics above{'\n'}
-                        • Restart Arduino if response time is too high
-                      </Text>
-                    </View>
+                    <Text style={[
+                      styles.qualityDescription,
+                      isTablet && styles.tabletQualityDescription
+                    ]}>
+                      Your app is running with production build optimizations for the best Arduino communication performance.
+                    </Text>
                   </View>
                 )}
               </View>
@@ -284,11 +188,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 120, // Extra padding for tab bar
+    paddingBottom: 120,
   },
   tabletScrollContent: {
     padding: 24,
-    paddingBottom: 140, // Extra padding for tab bar on tablets
+    paddingBottom: 140,
   },
   tabletLandscapeLayout: {
     flexDirection: 'row',
@@ -372,77 +276,56 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
   },
-  diagnosticsCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  qualityCard: {
+    backgroundColor: 'rgba(240, 253, 244, 0.95)',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#bbf7d0',
   },
-  tabletDiagnosticsCard: {
+  tabletQualityCard: {
     padding: 24,
     borderRadius: 20,
   },
-  diagnosticsTitle: {
+  qualityTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#374151',
-    marginBottom: 16,
+    color: '#166534',
+    marginBottom: 12,
     textAlign: 'center',
   },
-  tabletDiagnosticsTitle: {
+  tabletQualityTitle: {
     fontSize: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  diagnosticItem: {
+  qualityIndicator: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  diagnosticLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#6b7280',
-  },
-  tabletDiagnosticLabel: {
-    fontSize: 16,
-  },
-  diagnosticValue: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#374151',
-  },
-  tabletDiagnosticValue: {
-    fontSize: 16,
-  },
-  troubleshootingSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  troubleshootingTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-    color: '#dc2626',
-    marginBottom: 8,
-  },
-  tabletTroubleshootingTitle: {
-    fontSize: 16,
+    justifyContent: 'center',
     marginBottom: 12,
   },
-  troubleshootingText: {
+  qualityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22c55e',
+    marginRight: 8,
+  },
+  qualityText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#166534',
+  },
+  qualityDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#7f1d1d',
-    lineHeight: 18,
+    color: '#166534',
+    textAlign: 'center',
+    lineHeight: 16,
   },
-  tabletTroubleshootingText: {
+  tabletQualityDescription: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

@@ -66,21 +66,11 @@ export default function DashboardScreen() {
     }
   };
 
-  // Debug logging to help identify the issue
-  console.log('Dashboard - Device State:', {
-    sessionActive: deviceState.sessionActive,
-    direction: deviceState.direction,
-    brake: deviceState.brake,
-    speed: deviceState.speed,
-    isConnected: isConnected
-  });
-
-  // Check session status more comprehensively
+  // Check session status
   const hasActiveSession = deviceState.sessionActive === true;
   
   // Show session required notice if no active session
   if (!hasActiveSession) {
-    console.log('Dashboard - Showing Session Required Notice');
     return (
       <LinearGradient
         colors={['#1e3a8a', '#3b82f6']}
@@ -93,7 +83,7 @@ export default function DashboardScreen() {
             contentContainerStyle={[
               styles.scrollContent,
               isTablet && styles.tabletScrollContent,
-              { minHeight: height - 100 } // Account for safe area
+              { minHeight: height - 100 }
             ]}
           >
             <ResponsiveContainer fillScreen={true}>
@@ -102,19 +92,8 @@ export default function DashboardScreen() {
                 isConnected={isConnected} 
                 networkDetection={networkDetection}
                 onRefresh={handleRefreshConnection}
-                showDetails={true}
+                showDetails={false}
               />
-              
-              {/* Debug info for troubleshooting */}
-              <View style={styles.debugCard}>
-                <Text style={styles.debugTitle}>Debug Info</Text>
-                <Text style={styles.debugText}>Session Active: {String(deviceState.sessionActive)}</Text>
-                <Text style={styles.debugText}>Connected: {String(isConnected)}</Text>
-                <Text style={styles.debugText}>Direction: {deviceState.direction}</Text>
-                <Text style={styles.debugText}>Brake: {deviceState.brake}</Text>
-                <Text style={styles.debugText}>Speed: {deviceState.speed}</Text>
-              </View>
-              
               <SessionRequiredNotice />
             </ResponsiveContainer>
           </ScrollView>
@@ -122,8 +101,6 @@ export default function DashboardScreen() {
       </LinearGradient>
     );
   }
-
-  console.log('Dashboard - Showing Active Session Controls');
 
   const getLayoutStyle = () => {
     if (isTablet && isLandscape && screenType !== 'phone') {
@@ -144,7 +121,7 @@ export default function DashboardScreen() {
           contentContainerStyle={[
             styles.scrollContent,
             isTablet && styles.tabletScrollContent,
-            { minHeight: height - 100 } // Account for safe area and tab bar
+            { minHeight: height - 100 }
           ]}
         >
           <ResponsiveContainer fillScreen={true}>
@@ -155,7 +132,7 @@ export default function DashboardScreen() {
                   isConnected={isConnected} 
                   networkDetection={networkDetection}
                   onRefresh={handleRefreshConnection}
-                  showDetails={!isConnected}
+                  showDetails={false}
                 />
                 
                 <View style={[
@@ -298,11 +275,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100, // Extra padding for tab bar
+    paddingBottom: 100,
   },
   tabletScrollContent: {
     padding: 24,
-    paddingBottom: 120, // Extra padding for tab bar on tablets
+    paddingBottom: 120,
   },
   tabletLandscapeLayout: {
     flexDirection: 'row',
@@ -314,26 +291,6 @@ const styles = StyleSheet.create({
   },
   rightColumn: {
     flex: 1,
-  },
-  debugCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  debugTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  debugText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#e0f2fe',
-    marginBottom: 4,
   },
   statusCard: {
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
