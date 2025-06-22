@@ -12,8 +12,8 @@ interface AndroidArduinoConnection {
 }
 
 const ARDUINO_IP = '192.168.4.1';
-const ULTIMATE_TIMEOUT = 120000; // FINAL: 120 seconds (2 minutes) maximum
-const RETRY_DELAY = 15000; // 15 seconds between retries
+const NUCLEAR_TIMEOUT = 120000; // FINAL: 120 seconds (2 minutes) maximum
+const RETRY_DELAY = 10000; // 10 seconds between retries
 
 export function useAndroidArduinoConnection(): AndroidArduinoConnection {
   const [isConnected, setIsConnected] = useState(false);
@@ -24,20 +24,25 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
   
   const isComponentMounted = useRef(true);
 
-  // ANDROID 15 FINAL FIX - Nuclear Option with 6 Strategies
-  const sendCommand = useCallback(async (endpoint: string, timeout: number = ULTIMATE_TIMEOUT): Promise<{ ok: boolean; data: any; status: number }> => {
+  // ANDROID 15 FINAL DEBUG - Enhanced logging
+  const debugLog = (message: string, data?: any) => {
+    console.log(`[ANDROID-15-DEBUG] ${message}`, data || '');
+  };
+
+  // ANDROID 15 NUCLEAR OPTION - 6 Strategies with Enhanced Debugging
+  const sendCommand = useCallback(async (endpoint: string, timeout: number = NUCLEAR_TIMEOUT): Promise<{ ok: boolean; data: any; status: number }> => {
     const startTime = Date.now();
     
     try {
-      console.log(`[ANDROID 15 FINAL] Nuclear option: ${endpoint} with ${timeout}ms timeout`);
+      debugLog(`Starting NUCLEAR connection test: ${endpoint} with ${timeout}ms timeout`);
       
-      // STRATEGY 1: Absolute minimal fetch (zero headers)
+      // STRATEGY 1: Ultra-minimal fetch with debug logging
       try {
-        console.log('[ANDROID 15 FINAL] Strategy 1: Zero-header fetch...');
+        debugLog('Strategy 1: Ultra-minimal fetch starting...');
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
-          console.log('[ANDROID 15 FINAL] Strategy 1 timeout triggered');
+          debugLog('Strategy 1: Timeout triggered, aborting...');
           controller.abort();
         }, timeout);
         
@@ -52,7 +57,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
         const endTime = Date.now();
         const responseTimeMs = endTime - startTime;
         
-        console.log(`[ANDROID 15 FINAL] Strategy 1 response: ${response.status} in ${responseTimeMs}ms`);
+        debugLog(`Strategy 1 response: ${response.status} in ${responseTimeMs}ms`);
         
         if (response.ok) {
           let responseText = '';
@@ -60,16 +65,19 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
           
           try {
             responseText = await response.text();
-            console.log(`[ANDROID 15 FINAL] Strategy 1 SUCCESS! Response length: ${responseText.length}`);
+            debugLog(`Strategy 1 SUCCESS! Response length: ${responseText.length}`);
+            debugLog('Response preview:', responseText.substring(0, 200));
             
             // Try to parse as JSON, fallback to text
             try {
               responseData = JSON.parse(responseText);
+              debugLog('Successfully parsed JSON response');
             } catch (e) {
+              debugLog('Could not parse as JSON, using text response');
               responseData = { message: responseText, raw: responseText };
             }
           } catch (textError) {
-            console.log('[ANDROID 15 FINAL] Could not read response text:', textError);
+            debugLog('Could not read response text:', textError);
             responseData = { message: 'Response received but could not read content', status: 'success' };
           }
           
@@ -85,36 +93,41 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
             data: responseData,
             status: response.status
           };
+        } else {
+          debugLog(`Strategy 1 failed with status: ${response.status}`);
         }
       } catch (fetchError) {
-        console.log('[ANDROID 15 FINAL] Strategy 1 failed:', fetchError);
+        debugLog('Strategy 1 failed:', fetchError);
       }
       
-      // STRATEGY 2: XMLHttpRequest with maximum timeout
+      // STRATEGY 2: XMLHttpRequest with enhanced debugging
       if (Platform.OS === 'android' && typeof XMLHttpRequest !== 'undefined') {
-        console.log('[ANDROID 15 FINAL] Strategy 2: XMLHttpRequest with 120s timeout...');
+        debugLog('Strategy 2: XMLHttpRequest starting...');
         
         try {
           const result = await new Promise<{ ok: boolean; data: any; status: number }>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.timeout = 120000; // 2 minutes maximum
+            xhr.timeout = timeout;
             xhr.open('GET', `http://${ARDUINO_IP}${endpoint}`, true);
             
-            // Zero headers for maximum compatibility
+            debugLog('XHR request configured, sending...');
             
             xhr.onload = () => {
               const endTime = Date.now();
               const responseTimeMs = endTime - startTime;
               
-              console.log(`[ANDROID 15 FINAL] Strategy 2 response: ${xhr.status} in ${responseTimeMs}ms`);
+              debugLog(`Strategy 2 response: ${xhr.status} in ${responseTimeMs}ms`);
+              debugLog('XHR response text length:', xhr.responseText.length);
               
               if (xhr.status === 200 || xhr.status === 0) { // Accept status 0 for local requests
-                console.log(`[ANDROID 15 FINAL] Strategy 2 SUCCESS! Response: ${xhr.responseText.substring(0, 100)}`);
+                debugLog(`Strategy 2 SUCCESS! Response: ${xhr.responseText.substring(0, 100)}`);
                 
                 let responseData: any = null;
                 try {
                   responseData = JSON.parse(xhr.responseText);
+                  debugLog('XHR JSON parsed successfully');
                 } catch (e) {
+                  debugLog('XHR response not JSON, using text');
                   responseData = { message: xhr.responseText, raw: xhr.responseText };
                 }
                 
@@ -131,17 +144,18 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
                   status: xhr.status || 200
                 });
               } else {
+                debugLog(`XHR failed with status: ${xhr.status}`);
                 reject(new Error(`HTTP ${xhr.status}`));
               }
             };
             
-            xhr.onerror = () => {
-              console.log('[ANDROID 15 FINAL] Strategy 2 network error');
+            xhr.onerror = (error) => {
+              debugLog('Strategy 2 network error:', error);
               reject(new Error('Network error'));
             };
             
             xhr.ontimeout = () => {
-              console.log('[ANDROID 15 FINAL] Strategy 2 timeout after 120s');
+              debugLog('Strategy 2 timeout after', timeout, 'ms');
               reject(new Error('Timeout'));
             };
             
@@ -150,13 +164,13 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
           
           return result;
         } catch (xhrError) {
-          console.log('[ANDROID 15 FINAL] Strategy 2 failed:', xhrError);
+          debugLog('Strategy 2 failed:', xhrError);
         }
       }
       
-      // STRATEGY 3: No-CORS mode (opaque response)
+      // STRATEGY 3: No-CORS mode with debug logging
       try {
-        console.log('[ANDROID 15 FINAL] Strategy 3: No-CORS fetch...');
+        debugLog('Strategy 3: No-CORS fetch starting...');
         
         const response = await fetch(`http://${ARDUINO_IP}${endpoint}`, {
           method: 'GET',
@@ -168,11 +182,11 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
         const endTime = Date.now();
         const responseTimeMs = endTime - startTime;
         
-        console.log(`[ANDROID 15 FINAL] Strategy 3 response type: ${response.type} in ${responseTimeMs}ms`);
+        debugLog(`Strategy 3 response type: ${response.type} in ${responseTimeMs}ms`);
         
         // In no-cors mode, we can't read the response, but if we get here, the request succeeded
         if (response.type === 'opaque') {
-          console.log('[ANDROID 15 FINAL] Strategy 3 SUCCESS! (opaque response - connection established)');
+          debugLog('Strategy 3 SUCCESS! (opaque response - connection established)');
           
           if (isComponentMounted.current) {
             setResponseTime(responseTimeMs);
@@ -188,16 +202,17 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
           };
         }
       } catch (noCorsError) {
-        console.log('[ANDROID 15 FINAL] Strategy 3 failed:', noCorsError);
+        debugLog('Strategy 3 failed:', noCorsError);
       }
       
-      // STRATEGY 4: Image-based connection test
+      // STRATEGY 4: Image-based connection test with debug logging
       try {
-        console.log('[ANDROID 15 FINAL] Strategy 4: Image-based connection test...');
+        debugLog('Strategy 4: Image-based connection test starting...');
         
         const result = await new Promise<{ ok: boolean; data: any; status: number }>((resolve, reject) => {
           const img = new Image();
           const timeoutId = setTimeout(() => {
+            debugLog('Strategy 4: Image test timeout');
             reject(new Error('Image timeout'));
           }, 60000);
           
@@ -206,7 +221,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
             const endTime = Date.now();
             const responseTimeMs = endTime - startTime;
             
-            console.log(`[ANDROID 15 FINAL] Strategy 4 SUCCESS! Image loaded in ${responseTimeMs}ms`);
+            debugLog(`Strategy 4 SUCCESS! Image loaded in ${responseTimeMs}ms`);
             
             if (isComponentMounted.current) {
               setResponseTime(responseTimeMs);
@@ -228,7 +243,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
             const endTime = Date.now();
             const responseTimeMs = endTime - startTime;
             
-            console.log(`[ANDROID 15 FINAL] Strategy 4 partial success (server reachable) in ${responseTimeMs}ms`);
+            debugLog(`Strategy 4 partial success (server reachable) in ${responseTimeMs}ms`);
             
             if (isComponentMounted.current) {
               setResponseTime(responseTimeMs);
@@ -246,21 +261,23 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
           
           // Try to load a non-existent image from Arduino
           img.src = `http://${ARDUINO_IP}/test.png?t=${Date.now()}`;
+          debugLog('Image test URL:', img.src);
         });
         
         return result;
       } catch (imageError) {
-        console.log('[ANDROID 15 FINAL] Strategy 4 failed:', imageError);
+        debugLog('Strategy 4 failed:', imageError);
       }
       
-      // STRATEGY 5: WebSocket attempt (if available)
+      // STRATEGY 5: WebSocket attempt with debug logging
       if (typeof WebSocket !== 'undefined') {
         try {
-          console.log('[ANDROID 15 FINAL] Strategy 5: WebSocket connection test...');
+          debugLog('Strategy 5: WebSocket connection test starting...');
           
           const result = await new Promise<{ ok: boolean; data: any; status: number }>((resolve, reject) => {
             const ws = new WebSocket(`ws://${ARDUINO_IP}:80`);
             const timeoutId = setTimeout(() => {
+              debugLog('Strategy 5: WebSocket timeout');
               ws.close();
               reject(new Error('WebSocket timeout'));
             }, 30000);
@@ -270,7 +287,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
               const endTime = Date.now();
               const responseTimeMs = endTime - startTime;
               
-              console.log(`[ANDROID 15 FINAL] Strategy 5 SUCCESS! WebSocket connected in ${responseTimeMs}ms`);
+              debugLog(`Strategy 5 SUCCESS! WebSocket connected in ${responseTimeMs}ms`);
               
               if (isComponentMounted.current) {
                 setResponseTime(responseTimeMs);
@@ -287,32 +304,35 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
               });
             };
             
-            ws.onerror = () => {
+            ws.onerror = (error) => {
               clearTimeout(timeoutId);
+              debugLog('Strategy 5 WebSocket error:', error);
               reject(new Error('WebSocket error'));
             };
           });
           
           return result;
         } catch (wsError) {
-          console.log('[ANDROID 15 FINAL] Strategy 5 failed:', wsError);
+          debugLog('Strategy 5 failed:', wsError);
         }
       }
       
-      // STRATEGY 6: TCP Socket simulation (last resort)
+      // STRATEGY 6: JSONP-style script injection with debug logging
       try {
-        console.log('[ANDROID 15 FINAL] Strategy 6: TCP socket simulation...');
+        debugLog('Strategy 6: JSONP-style connection test starting...');
         
-        // Create a fake request that might trigger TCP connection
         const result = await new Promise<{ ok: boolean; data: any; status: number }>((resolve, reject) => {
           const script = document.createElement('script');
           script.src = `http://${ARDUINO_IP}${endpoint}?callback=jsonp_${Date.now()}`;
+          
+          debugLog('JSONP script URL:', script.src);
+          
           script.onerror = () => {
             // Even if JSONP fails, it means we can reach the server
             const endTime = Date.now();
             const responseTimeMs = endTime - startTime;
             
-            console.log(`[ANDROID 15 FINAL] Strategy 6 partial success (TCP reachable) in ${responseTimeMs}ms`);
+            debugLog(`Strategy 6 partial success (TCP reachable) in ${responseTimeMs}ms`);
             
             if (isComponentMounted.current) {
               setResponseTime(responseTimeMs);
@@ -324,7 +344,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
             document.head.removeChild(script);
             resolve({
               ok: true,
-              data: { message: 'TCP connection verified', method: 'tcp-simulation' },
+              data: { message: 'TCP connection verified', method: 'jsonp-simulation' },
               status: 200
             });
           };
@@ -333,24 +353,26 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
             if (script.parentNode) {
               document.head.removeChild(script);
             }
-            reject(new Error('TCP simulation timeout'));
+            debugLog('Strategy 6: JSONP timeout');
+            reject(new Error('JSONP simulation timeout'));
           }, 30000);
           
           document.head.appendChild(script);
         });
         
         return result;
-      } catch (tcpError) {
-        console.log('[ANDROID 15 FINAL] Strategy 6 failed:', tcpError);
+      } catch (jsonpError) {
+        debugLog('Strategy 6 failed:', jsonpError);
       }
       
+      debugLog('ALL 6 STRATEGIES FAILED - This indicates a fundamental issue');
       throw new Error('All 6 connection strategies failed');
       
     } catch (error) {
       const endTime = Date.now();
       const responseTimeMs = endTime - startTime;
       
-      console.log(`[ANDROID 15 FINAL] All strategies failed after ${responseTimeMs}ms:`, error);
+      debugLog(`All strategies failed after ${responseTimeMs}ms:`, error);
       
       if (isComponentMounted.current) {
         setResponseTime(responseTimeMs);
@@ -371,14 +393,14 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
     }
   }, []);
 
-  // FINAL connection test with 10 full rounds
+  // FINAL connection test with comprehensive debugging
   const testConnection = useCallback(async (): Promise<boolean> => {
-    console.log('[ANDROID 15 FINAL] Starting FINAL connection test with 10 rounds...');
+    debugLog('Starting FINAL connection test with comprehensive debugging...');
     
     setConnectionStatus('checking');
     setConnectionAttempts(prev => prev + 1);
     
-    // FINAL strategy: 10 rounds, all endpoints, all methods
+    // Test all endpoints with all strategies
     const endpoints = [
       '/',
       '/ping', 
@@ -388,61 +410,64 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
       '/sync',
     ];
     
-    for (let round = 0; round < 10; round++) { // 10 full rounds
-      console.log(`[ANDROID 15 FINAL] === ROUND ${round + 1}/10 ===`);
+    for (let round = 0; round < 3; round++) { // 3 full rounds
+      debugLog(`=== ROUND ${round + 1}/3 ===`);
       
       for (let i = 0; i < endpoints.length; i++) {
         const endpoint = endpoints[i];
         
         try {
-          console.log(`[ANDROID 15 FINAL] Round ${round + 1}, Endpoint ${i + 1}/${endpoints.length}: ${endpoint}`);
+          debugLog(`Round ${round + 1}, Endpoint ${i + 1}/${endpoints.length}: ${endpoint}`);
           
-          const result = await sendCommand(endpoint, 120000);
+          const result = await sendCommand(endpoint, NUCLEAR_TIMEOUT);
           
           if (result.ok) {
-            console.log(`[ANDROID 15 FINAL] 🎉 FINAL SUCCESS! ${endpoint} worked on round ${round + 1}!`);
+            debugLog(`🎉 FINAL SUCCESS! ${endpoint} worked on round ${round + 1}!`);
+            debugLog('Success data:', result.data);
             return true;
           }
         } catch (error) {
-          console.log(`[ANDROID 15 FINAL] Round ${round + 1}, ${endpoint} failed:`, error);
+          debugLog(`Round ${round + 1}, ${endpoint} failed:`, error);
         }
         
         // Wait between each endpoint attempt
-        console.log(`[ANDROID 15 FINAL] Waiting ${RETRY_DELAY}ms before next endpoint...`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        if (i < endpoints.length - 1) {
+          debugLog(`Waiting ${RETRY_DELAY}ms before next endpoint...`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        }
       }
       
       // Wait between rounds
-      if (round < 9) {
-        console.log(`[ANDROID 15 FINAL] Round ${round + 1} complete. Waiting 30s before next round...`);
-        await new Promise(resolve => setTimeout(resolve, 30000));
+      if (round < 2) {
+        debugLog(`Round ${round + 1} complete. Waiting 20s before next round...`);
+        await new Promise(resolve => setTimeout(resolve, 20000));
       }
     }
     
-    console.log('[ANDROID 15 FINAL] ❌ All 10 rounds failed. Hardware issue likely.');
+    debugLog('❌ All 3 rounds failed. This indicates a fundamental hardware or network issue.');
+    debugLog('RECOMMENDATION: Test Arduino with computer browser to verify hardware');
     return false;
   }, [sendCommand]);
 
-  // Ultra-conservative monitoring for Android 15 APK
+  // Enhanced monitoring with debug logging
   useEffect(() => {
     let monitoringInterval: NodeJS.Timeout;
     
     const startMonitoring = async () => {
-      // Wait even longer for Android 15 APK to fully stabilize
-      console.log('[ANDROID 15 FINAL] Waiting 30 seconds for Android 15 APK to stabilize...');
-      await new Promise(resolve => setTimeout(resolve, 30000));
+      debugLog('Waiting 15 seconds for Android 15 APK to stabilize...');
+      await new Promise(resolve => setTimeout(resolve, 15000));
       
       if (isComponentMounted.current) {
-        console.log('[ANDROID 15 FINAL] Starting initial connection test...');
+        debugLog('Starting initial connection test...');
         await testConnection();
         
-        // Check every 5 minutes if not connected (ultra-conservative)
+        // Check every 2 minutes if not connected
         monitoringInterval = setInterval(async () => {
           if (isComponentMounted.current && !isConnected) {
-            console.log('[ANDROID 15 FINAL] Periodic connection check (5-minute interval)...');
+            debugLog('Periodic connection check (2-minute interval)...');
             await testConnection();
           }
-        }, 300000); // 5 minutes
+        }, 120000); // 2 minutes
       }
     };
 
