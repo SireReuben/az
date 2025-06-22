@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { Shield, CheckCircle, XCircle, AlertTriangle, RefreshCw } from 'lucide-react-native';
+import { Shield, CircleCheck as CheckCircle, Circle as XCircle, TriangleAlert as AlertTriangle, RefreshCw } from 'lucide-react-native';
 import { useAndroidCleartextTest } from '@/hooks/useAndroidCleartextTest';
 
 export function AndroidCleartextDiagnostics() {
