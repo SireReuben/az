@@ -12,7 +12,7 @@ interface AndroidArduinoConnection {
 }
 
 const ARDUINO_IP = '192.168.4.1';
-const DEFAULT_TIMEOUT = 90000; // Increased to 90 seconds for maximum Android 15 compatibility
+const DEFAULT_TIMEOUT = 90000; // ULTIMATE: 90 seconds for maximum Android 15 compatibility
 const RETRY_DELAY = 10000; // 10 seconds between retries
 
 export function useAndroidArduinoConnection(): AndroidArduinoConnection {
@@ -24,7 +24,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
   
   const isComponentMounted = useRef(true);
 
-  // ANDROID 15 ULTIMATE FIX - Maximum compatibility strategy
+  // ANDROID 15 ULTIMATE FIX - 4-Strategy Maximum Compatibility
   const sendCommand = useCallback(async (endpoint: string, timeout: number = DEFAULT_TIMEOUT): Promise<{ ok: boolean; data: any; status: number }> => {
     const startTime = Date.now();
     
@@ -100,7 +100,7 @@ export function useAndroidArduinoConnection(): AndroidArduinoConnection {
         console.log('[ANDROID 15 ULTIMATE] Strategy 1 failed:', fetchError);
       }
       
-      // STRATEGY 2: XMLHttpRequest with maximum timeout and minimal config
+      // STRATEGY 2: XMLHttpRequest with maximum timeout
       if (Platform.OS === 'android' && typeof XMLHttpRequest !== 'undefined') {
         console.log('[ANDROID 15 ULTIMATE] Strategy 2: XMLHttpRequest with 90s timeout...');
         

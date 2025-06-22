@@ -191,34 +191,6 @@ void handleOfflineSync() {
   Serial.println("Offline sync data sent to Android APK");
 }
 
-// Enhanced device info with offline capabilities
-void handleDeviceInfo() {
-  setCORSHeaders();
-  
-  DynamicJsonDocument doc(1024);
-  doc["device"] = "AEROSPIN Controller";
-  doc["version"] = "1.0.0-Android-APK-Optimized";
-  doc["platform"] = "ESP8266";
-  doc["chipId"] = String(ESP.getChipId(), HEX);
-  doc["flashSize"] = ESP.getFlashChipSize();
-  doc["cpuFreq"] = ESP.getCpuFreqMHz();
-  doc["sdkVersion"] = ESP.getSdkVersion();
-  doc["wifiMode"] = "Access Point";
-  doc["ssid"] = ssid;
-  doc["ip"] = WiFi.softAPIP().toString();
-  doc["mac"] = WiFi.softAPmacAddress();
-  doc["androidSupport"] = "Enhanced";
-  doc["offlineSupport"] = true;
-  doc["corsEnabled"] = true;
-  doc["jsonApi"] = true;
-  doc["persistentStorage"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  
-  server.send(200, "application/json", response);
-}
-
 // Save complete offline data to EEPROM
 void saveOfflineData() {
   offlineData.sessionActive = sessionActive;
@@ -266,343 +238,6 @@ void loadOfflineData() {
   }
 }
 
-// Enhanced session start with offline support
-void handleStartSession() {
-  setCORSHeaders();
-  
-  if (sessionActive) {
-    DynamicJsonDocument doc(256);
-    doc["status"] = "error";
-    doc["message"] = "Session already active";
-    doc["sessionId"] = String(offlineData.sessionId);
-    
-    String response;
-    serializeJson(doc, response);
-    server.send(400, "application/json", response);
-    return;
-  }
-  
-  sessionActive = true;
-  sessionStartTime = millis();
-  sessionLog = "Session Started: " + String(millis()) + "ms\n";
-  
-  // Save to offline storage
-  saveOfflineData();
-  
-  updateLCD();
-  Serial.println("Session started with offline support");
-  
-  DynamicJsonDocument doc(512);
-  doc["status"] = "success";
-  doc["message"] = "Session started successfully";
-  doc["sessionId"] = String(offlineData.sessionId);
-  doc["startTime"] = sessionStartTime;
-  doc["offlineSupport"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-// Enhanced session end with offline data preservation
-void handleEndSession() {
-  setCORSHeaders();
-  
-  if (!sessionActive) {
-    DynamicJsonDocument doc(256);
-    doc["status"] = "error";
-    doc["message"] = "No active session";
-    
-    String response;
-    serializeJson(doc, response);
-    server.send(400, "application/json", response);
-    return;
-  }
-  
-  sessionActive = false;
-  sessionLog += "Session Ended: " + String(millis()) + "ms\n";
-  sessionLog += "Duration: " + String(millis() - sessionStartTime) + "ms\n";
-  
-  // Preserve final state in offline storage
-  saveOfflineData();
-  
-  // Reset motor controls for safety
-  speed = 0;
-  currentDirection = DIR_NONE;
-  MotorDirection = 0;
-  
-  sendLoRaData();
-  updateLCD();
-  
-  DynamicJsonDocument doc(1024);
-  doc["status"] = "success";
-  doc["message"] = "Session ended successfully";
-  doc["sessionLog"] = sessionLog;
-  doc["duration"] = millis() - sessionStartTime;
-  doc["offlineDataSaved"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  
-  String log = sessionLog;
-  sessionLog = "";
-  memset(offlineData.sessionId, 0, sizeof(offlineData.sessionId));
-  
-  Serial.println("Session ended with offline data preserved");
-  server.send(200, "application/json", response);
-}
-
-// Rest of the original functions remain the same...
-void setupLoRa() {
-  Serial.println("Starting LoRa initialization...");
-  SPI.begin();
-  LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
-  if (!LoRa.begin(433E6)) {
-    Serial.println("LoRa init failed! Continuing without LoRa...");
-    lcd.setCursor(0, 3);
-    lcd.print("LoRa Init Failed");
-    delay(2000);
-    return;
-  }
-  Serial.println("LoRa initialized successfully");
-  LoRa.onReceive(onReceive);
-  LoRa.receive();
-}
-
-void onReceive(int packetSize) {
-  if (packetSize == 0) return;
-  receivedData = "";
-  while (LoRa.available()) {
-    receivedData += (char)LoRa.read();
-  }
-  newDataReceived = true;
-  Serial.println("Received: " + receivedData);
-  if (sessionActive) {
-    sessionLog += String(millis() - sessionStartTime) + "ms: LoRa RX: " + receivedData + "\n";
-  }
-}
-
-void sendLoRaData() {
-  LoRa.beginPacket();
-  String data = String(MotorDirection) + "," + String(brakeStatus) + "," + String(speed);
-  LoRa.print(data);
-  LoRa.endPacket();
-  Serial.println("Sent: " + data);
-  LoRa.receive();
-}
-
-void updateLCD() {
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("AEROSPIN GLOBAL");
-  lcd.setCursor(0, 1);
-  lcd.print("D:");
-  lcd.print(currentDirection == DIR_FORWARD ? "FWD" : 
-            currentDirection == DIR_REVERSE ? "REV" : "OFF");
-  lcd.setCursor(8, 1);
-  lcd.print("B:");
-  lcd.print(brakeStatus == BRAKE_PULL ? "PULL" :
-            brakeStatus == BRAKE_PUSH ? "PUSH" : "OFF");
-  lcd.setCursor(0, 2);
-  lcd.print("Speed: ");
-  lcd.print(speed);
-  lcd.print("%");
-  lcd.setCursor(0, 3);
-  if (newDataReceived) {
-    lcd.print("RX:");
-    lcd.print(receivedData.substring(0, LCD_COLUMNS-4));
-    newDataReceived = false;
-  } else {
-    lcd.print(sessionActive ? "Session: ON" : "APK Ready+Offline");
-  }
-}
-
-void handleRoot() {
-  if (WiFi.softAPgetStationNum() > 4) {
-    setCORSHeaders();
-    DynamicJsonDocument doc(256);
-    doc["status"] = "error";
-    doc["message"] = "Too many devices connected. Disconnect others.";
-    
-    String response;
-    serializeJson(doc, response);
-    server.send(403, "application/json", response);
-    return;
-  }
-  setCORSHeaders();
-  server.sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  server.sendHeader("Pragma", "no-cache");
-  server.sendHeader("Expires", "-1");
-  
-  // Simple JSON response for APK compatibility
-  DynamicJsonDocument doc(512);
-  doc["status"] = "ready";
-  doc["device"] = "AEROSPIN Controller";
-  doc["message"] = "Android APK Optimized Version";
-  doc["endpoints"] = "Use /ping, /status, /health for API access";
-  
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-// Enhanced control handlers with JSON responses
-void handleDirection() {
-  setCORSHeaders();
-  if (!server.hasArg("state")) {
-    DynamicJsonDocument doc(256);
-    doc["status"] = "error";
-    doc["message"] = "Missing state parameter";
-    
-    String response;
-    serializeJson(doc, response);
-    server.send(400, "application/json", response);
-    return;
-  }
-  
-  String state = server.arg("state");
-  if (state == "forward") {
-    currentDirection = DIR_FORWARD;
-    MotorDirection = 1;
-  } else if (state == "reverse") {
-    currentDirection = DIR_REVERSE;
-    MotorDirection = 2;
-  } else {
-    currentDirection = DIR_NONE;
-    MotorDirection = 0;
-  }
-  
-  Serial.printf("Direction: %s (%d)\n", state.c_str(), MotorDirection);
-  sendLoRaData();
-  updateLCD();
-  saveOfflineData(); // Save state for offline recovery
-  
-  if (sessionActive) {
-    sessionLog += String(millis() - sessionStartTime) + "ms: Direction set to " + state + "\n";
-  }
-  
-  DynamicJsonDocument doc(512);
-  doc["status"] = "success";
-  doc["message"] = "Direction set to " + state;
-  doc["direction"] = state;
-  doc["motorDirection"] = MotorDirection;
-  doc["offlineSaved"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-void handleBrake() {
-  setCORSHeaders();
-  if (!server.hasArg("action") || !server.hasArg("state")) {
-    DynamicJsonDocument doc(256);
-    doc["status"] = "error";
-    doc["message"] = "Missing action or state parameter";
-    
-    String response;
-    serializeJson(doc, response);
-    server.send(400, "application/json", response);
-    return;
-  }
-  
-  String action = server.arg("action");
-  String state = server.arg("state");
-  
-  if (action == "pull" && state == "on") brakeStatus = BRAKE_PULL;
-  else if (action == "push" && state == "on") brakeStatus = BRAKE_PUSH;
-  else brakeStatus = BRAKE_NONE;
-  
-  Serial.printf("Brake: %s %s (brakeStatus: %d)\n", action.c_str(), state.c_str(), brakeStatus);
-  sendLoRaData();
-  updateLCD();
-  saveOfflineData(); // Save state for offline recovery
-  
-  if (sessionActive) {
-    sessionLog += String(millis() - sessionStartTime) + "ms: Brake " + action + " " + state + "\n";
-  }
-  
-  DynamicJsonDocument doc(512);
-  doc["status"] = "success";
-  doc["message"] = "Brake " + action + " " + state + " applied";
-  doc["brake"] = (brakeStatus == BRAKE_PULL) ? "Pull" : 
-                 (brakeStatus == BRAKE_PUSH) ? "Push" : "None";
-  doc["offlineSaved"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-void handleSpeed() {
-  setCORSHeaders();
-  if (!server.hasArg("value")) {
-    DynamicJsonDocument doc(256);
-    doc["status"] = "error";
-    doc["message"] = "Missing value parameter";
-    
-    String response;
-    serializeJson(doc, response);
-    server.send(400, "application/json", response);
-    return;
-  }
-  
-  speed = constrain(server.arg("value").toInt(), 0, 100);
-  Serial.println("Speed: " + String(speed));
-  sendLoRaData();
-  updateLCD();
-  saveOfflineData(); // Save state for offline recovery
-  
-  if (sessionActive) {
-    sessionLog += String(millis() - sessionStartTime) + "ms: Speed set to " + String(speed) + "\n";
-  }
-  
-  DynamicJsonDocument doc(512);
-  doc["status"] = "success";
-  doc["message"] = "Speed set to " + String(speed) + "%";
-  doc["speed"] = speed;
-  doc["offlineSaved"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-}
-
-void handleReset() {
-  setCORSHeaders();
-  
-  speed = 0;
-  currentDirection = DIR_NONE;
-  MotorDirection = 0;
-  
-  Serial.println("Resetting device, preserving brakeStatus: " + String(brakeStatus));
-  
-  if (sessionActive) {
-    sessionActive = false;
-    sessionLog += String(millis() - sessionStartTime) + "ms: Device reset\n";
-    sessionLog = "";
-  }
-  
-  sendLoRaData();
-  updateLCD();
-  saveOfflineData(); // Save final state before reset
-  
-  DynamicJsonDocument doc(512);
-  doc["status"] = "success";
-  doc["message"] = "Reset complete, restarting device...";
-  doc["brakePreserved"] = (brakeStatus == BRAKE_PULL) ? "Pull" : 
-                          (brakeStatus == BRAKE_PUSH) ? "Push" : "None";
-  doc["offlineDataSaved"] = true;
-  
-  String response;
-  serializeJson(doc, response);
-  server.send(200, "application/json", response);
-  
-  Serial.println("Device reset completed");
-  delay(100);
-  ESP.restart();
-}
-
 void setup() {
   Serial.begin(115200);
   Serial.println("\n=== AEROSPIN Motor Controller Starting ===");
@@ -625,23 +260,6 @@ void setup() {
   lcd.print("AEROSPIN STARTING...");
   lcd.setCursor(0, 1);
   lcd.print("APK+Offline Ready");
-  yield();
-
-  // Initialize SPIFFS
-  Serial.println("Initializing SPIFFS...");
-  if (!SPIFFS.begin()) {
-    Serial.println("SPIFFS init failed! Continuing without SPIFFS...");
-    lcd.setCursor(0, 3);
-    lcd.print("SPIFFS Init Failed");
-    delay(2000);
-  } else {
-    Serial.println("SPIFFS initialized successfully");
-  }
-  yield();
-
-  // Initialize LoRa
-  Serial.println("Setting up LoRa...");
-  setupLoRa();
   yield();
 
   // Start WiFi AP with Android APK optimizations
@@ -686,25 +304,62 @@ void setup() {
   Serial.println("Starting HTTP server optimized for Android APK...");
   
   // Main routes
-  server.on("/", handleRoot);
-  server.on("/index.html", handleRoot);
+  server.on("/", []() {
+    setCORSHeaders();
+    DynamicJsonDocument doc(512);
+    doc["status"] = "ready";
+    doc["device"] = "AEROSPIN Controller";
+    doc["message"] = "Android APK Optimized Version";
+    doc["endpoints"] = "Use /ping, /status, /health for API access";
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
   
   // Enhanced API routes for Android APK with JSON responses
   server.on("/ping", HTTP_GET, handlePing);
   server.on("/status", HTTP_GET, handleStatus);
-  server.on("/health", HTTP_GET, handleDeviceInfo); // Reuse device info for health
-  server.on("/info", HTTP_GET, handleDeviceInfo);
-  server.on("/sync", HTTP_GET, handleOfflineSync); // New offline sync endpoint
-  
-  // Control routes with JSON responses
-  server.on("/direction", HTTP_GET, handleDirection);
-  server.on("/brake", HTTP_GET, handleBrake);
-  server.on("/speed", HTTP_GET, handleSpeed);
-  
-  // Session routes with JSON responses
-  server.on("/startSession", HTTP_GET, handleStartSession);
-  server.on("/endSession", HTTP_GET, handleEndSession);
-  server.on("/reset", HTTP_GET, handleReset);
+  server.on("/health", HTTP_GET, []() {
+    setCORSHeaders();
+    DynamicJsonDocument doc(1024);
+    doc["status"] = "OK";
+    doc["system"] = "Operational";
+    doc["platform"] = "ESP8266 for Android APK";
+    doc["uptime"] = millis() / 1000;
+    doc["freeHeap"] = ESP.getFreeHeap();
+    doc["androidClients"] = WiFi.softAPgetStationNum();
+    doc["session"] = sessionActive ? "Active" : "Inactive";
+    doc["androidCompatible"] = true;
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  server.on("/info", HTTP_GET, []() {
+    setCORSHeaders();
+    DynamicJsonDocument doc(1024);
+    doc["device"] = "AEROSPIN Controller";
+    doc["version"] = "1.0.0-Android-APK-Optimized";
+    doc["platform"] = "ESP8266";
+    doc["chipId"] = String(ESP.getChipId(), HEX);
+    doc["flashSize"] = ESP.getFlashChipSize();
+    doc["cpuFreq"] = ESP.getCpuFreqMHz();
+    doc["sdkVersion"] = ESP.getSdkVersion();
+    doc["wifiMode"] = "Access Point";
+    doc["ssid"] = ssid;
+    doc["ip"] = WiFi.softAPIP().toString();
+    doc["mac"] = WiFi.softAPmacAddress();
+    doc["androidSupport"] = "Enhanced";
+    doc["offlineSupport"] = true;
+    doc["corsEnabled"] = true;
+    doc["jsonApi"] = true;
+    
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+  });
+  server.on("/sync", HTTP_GET, handleOfflineSync);
   
   // Handle OPTIONS requests for CORS preflight (critical for Android APK)
   server.onNotFound([]() {
@@ -717,7 +372,7 @@ void setup() {
       doc["message"] = "Endpoint not found";
       doc["uri"] = server.uri();
       doc["method"] = (server.method() == HTTP_GET) ? "GET" : "POST";
-      doc["availableEndpoints"] = "/ping, /status, /health, /info, /sync, /direction, /brake, /speed, /startSession, /endSession, /reset";
+      doc["availableEndpoints"] = "/ping, /status, /health, /info, /sync";
       
       String response;
       serializeJson(doc, response);
@@ -734,15 +389,8 @@ void setup() {
   Serial.println("  GET  /health     - Comprehensive health check (JSON)");
   Serial.println("  GET  /info       - Device information (JSON)");
   Serial.println("  GET  /sync       - Offline data synchronization (JSON)");
-  Serial.println("  GET  /direction  - Set motor direction (JSON)");
-  Serial.println("  GET  /brake      - Control brake (JSON)");
-  Serial.println("  GET  /speed      - Set motor speed (JSON)");
-  Serial.println("  GET  /startSession - Start session (JSON)");
-  Serial.println("  GET  /endSession - End session (JSON)");
-  Serial.println("  GET  /reset      - Reset device (JSON)");
   yield();
 
-  updateLCD();
   Serial.println("=== AEROSPIN Controller Ready for Android APK with Offline Support ===");
   Serial.println("Android devices should connect to:");
   Serial.println("SSID: " + String(ssid));
@@ -752,11 +400,6 @@ void setup() {
 
 void loop() {
   server.handleClient();
-  MDNS.update();
-  
-  if (newDataReceived) {
-    updateLCD();
-  }
   
   // Enhanced status updates for Android APK monitoring
   static unsigned long lastStatusUpdate = 0;
