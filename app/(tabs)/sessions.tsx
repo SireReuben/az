@@ -294,7 +294,7 @@ export default function SessionsScreen() {
                         <Text style={styles.metricLabel}>Reliability</Text>
                       </View>
                       <View style={styles.metric}>
-                        <Text style={styles.metricValue}>< 5s</Text>
+                        <Text style={styles.metricValue}>{'< 5s'}</Text>
                         <Text style={styles.metricLabel}>Response</Text>
                       </View>
                       <View style={styles.metric}>
