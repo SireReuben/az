@@ -17,7 +17,7 @@ import Animated, {
   withTiming,
   interpolate
 } from 'react-native-reanimated';
-import { Bell, Activity, Shield, Zap, AlertTriangle } from 'lucide-react-native';
+import { Bell, Activity, Shield, Zap, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 
 export default function AlertsScreen() {
   const { 
