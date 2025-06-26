@@ -1,15 +1,39 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat,
+  withTiming,
+  interpolate
+} from 'react-native-reanimated';
 
 export function StatusHeader() {
   const { isTablet } = useDeviceOrientation();
+  
+  // Subtle glow animation
+  const glowAnimation = useSharedValue(0);
+  
+  React.useEffect(() => {
+    glowAnimation.value = withRepeat(
+      withTiming(1, { duration: 3000 }),
+      -1,
+      true
+    );
+  }, [glowAnimation]);
+
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: interpolate(glowAnimation.value, [0, 1], [0.2, 0.6]),
+    shadowRadius: interpolate(glowAnimation.value, [0, 1], [8, 16]),
+  }));
 
   return (
     <View style={styles.container}>
-      <View style={[
+      <Animated.View style={[
         styles.logoContainer,
-        isTablet && styles.tabletLogoContainer
+        isTablet && styles.tabletLogoContainer,
+        animatedGlowStyle
       ]}>
         <Image 
           source={require('@/assets/images/Aerospin-1-300x200.png')}
@@ -19,7 +43,9 @@ export function StatusHeader() {
           ]}
           resizeMode="contain"
         />
-      </View>
+        <View style={styles.logoGlow} />
+      </Animated.View>
+      
       <Text style={[
         styles.title,
         isTablet && styles.tabletTitle
@@ -30,8 +56,12 @@ export function StatusHeader() {
         styles.subtitle,
         isTablet && styles.tabletSubtitle
       ]}>
-        GLOBAL CONTROL
+        GLOBAL CONTROL SYSTEM
       </Text>
+      
+      <View style={styles.versionBadge}>
+        <Text style={styles.versionText}>v2.0 Enterprise</Text>
+      </View>
     </View>
   );
 }
@@ -39,45 +69,83 @@ export function StatusHeader() {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: 20,
+    position: 'relative',
   },
   logoContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 8,
-    marginBottom: 12,
-  },
-  tabletLogoContainer: {
-    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
     padding: 12,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  tabletLogoContainer: {
+    borderRadius: 24,
+    padding: 16,
+    marginBottom: 20,
+  },
+  logoGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 20,
   },
   logo: {
-    width: 60,
-    height: 40,
-  },
-  tabletLogo: {
     width: 80,
     height: 53,
+    zIndex: 1,
+  },
+  tabletLogo: {
+    width: 100,
+    height: 67,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
-    letterSpacing: 2,
+    letterSpacing: 3,
+    textShadowColor: 'rgba(59, 130, 246, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
   tabletTitle: {
-    fontSize: 36,
-    letterSpacing: 3,
+    fontSize: 40,
+    letterSpacing: 4,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#e0f2fe',
-    letterSpacing: 1,
+    color: '#94a3b8',
+    letterSpacing: 2,
+    marginBottom: 12,
   },
   tabletSubtitle: {
-    fontSize: 16,
-    letterSpacing: 1.5,
+    fontSize: 18,
+    letterSpacing: 2.5,
+    marginBottom: 16,
+  },
+  versionBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+  },
+  versionText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#22c55e',
+    letterSpacing: 0.5,
   },
 });

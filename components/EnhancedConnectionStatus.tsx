@@ -2,6 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Wifi, WifiOff, Circle, RefreshCw, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat,
+  withTiming,
+  interpolate
+} from 'react-native-reanimated';
 
 interface NetworkInfo {
   ssid: string | null;
@@ -41,6 +48,21 @@ export function EnhancedConnectionStatus({
     detectionStatus
   } = networkDetection;
 
+  // Pulse animation for connection status
+  const pulseAnimation = useSharedValue(0);
+  
+  React.useEffect(() => {
+    if (isConnected) {
+      pulseAnimation.value = withRepeat(
+        withTiming(1, { duration: 2000 }),
+        -1,
+        true
+      );
+    } else {
+      pulseAnimation.value = 0;
+    }
+  }, [isConnected, pulseAnimation]);
+
   const getStatusIcon = () => {
     if (detectionStatus === 'checking') {
       return <RefreshCw size={isTablet ? 20 : 16} color="#f59e0b" />;
@@ -59,7 +81,7 @@ export function EnhancedConnectionStatus({
 
   const getStatusText = () => {
     if (detectionStatus === 'checking') {
-      return 'Connecting to Arduino...';
+      return 'Establishing Connection...';
     }
     
     if (isConnected) {
@@ -88,74 +110,125 @@ export function EnhancedConnectionStatus({
     return '#ef4444';
   };
 
+  const animatedPulseStyle = useAnimatedStyle(() => ({
+    shadowOpacity: isConnected ? interpolate(pulseAnimation.value, [0, 1], [0.2, 0.6]) : 0,
+    shadowRadius: isConnected ? interpolate(pulseAnimation.value, [0, 1], [8, 16]) : 0,
+  }));
+
   return (
-    <View style={[
+    <Animated.View style={[
       styles.container,
-      isTablet && styles.tabletContainer
+      isTablet && styles.tabletContainer,
+      animatedPulseStyle,
+      {
+        shadowColor: getStatusColor(),
+        borderColor: `${getStatusColor()}40`,
+      }
     ]}>
       {/* Main Status Row */}
       <View style={styles.mainStatus}>
         <View style={styles.statusRow}>
-          {getStatusIcon()}
-          <Text style={[
-            styles.statusText,
-            isTablet && styles.tabletStatusText,
-            { color: getStatusColor() }
+          <View style={[
+            styles.iconContainer,
+            { backgroundColor: `${getStatusColor()}20` }
           ]}>
-            {getStatusText()}
-          </Text>
+            {getStatusIcon()}
+          </View>
+          <View style={styles.statusTextContainer}>
+            <Text style={[
+              styles.statusText,
+              isTablet && styles.tabletStatusText,
+              { color: getStatusColor() }
+            ]}>
+              {getStatusText()}
+            </Text>
+            {isConnected && (
+              <Text style={styles.qualityText}>
+                Signal strength: {connectionQuality.toUpperCase()}
+              </Text>
+            )}
+          </View>
         </View>
         
         {onRefresh && (
           <TouchableOpacity
             style={[
               styles.refreshButton,
-              isTablet && styles.tabletRefreshButton
+              isTablet && styles.tabletRefreshButton,
+              { borderColor: `${getStatusColor()}40` }
             ]}
             onPress={onRefresh}
           >
-            <RefreshCw size={isTablet ? 18 : 14} color="#6b7280" />
+            <RefreshCw size={isTablet ? 18 : 14} color={getStatusColor()} />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Simple connection help for non-connected states */}
-      {!isConnected && showDetails && (
-        <View style={[
-          styles.helpContainer,
-          isTablet && styles.tabletHelpContainer
-        ]}>
-          <Text style={[
-            styles.helpTitle,
-            isTablet && styles.tabletHelpTitle
-          ]}>
-            Connection Help:
-          </Text>
-          <Text style={[
-            styles.helpText,
-            isTablet && styles.tabletHelpText
-          ]}>
-            1. Ensure Arduino device is powered on{'\n'}
-            2. Connect to "AEROSPIN CONTROL" WiFi network{'\n'}
-            3. Wait for automatic connection{'\n'}
-            4. Try refreshing if connection fails
-          </Text>
+      {/* Connection Details */}
+      {showDetails && !isConnected && (
+        <View style={styles.detailsContainer}>
+          <Text style={styles.detailsTitle}>Connection Help:</Text>
+          <View style={styles.helpSteps}>
+            <View style={styles.helpStep}>
+              <Circle size={6} color="#64748b" />
+              <Text style={styles.helpText}>Ensure Arduino device is powered on</Text>
+            </View>
+            <View style={styles.helpStep}>
+              <Circle size={6} color="#64748b" />
+              <Text style={styles.helpText}>Connect to "AEROSPIN CONTROL" WiFi network</Text>
+            </View>
+            <View style={styles.helpStep}>
+              <Circle size={6} color="#64748b" />
+              <Text style={styles.helpText}>Wait for automatic connection</Text>
+            </View>
+            <View style={styles.helpStep}>
+              <Circle size={6} color="#64748b" />
+              <Text style={styles.helpText}>Try refreshing if connection fails</Text>
+            </View>
+          </View>
         </View>
       )}
-    </View>
+
+      {/* Connection Quality Indicator */}
+      {isConnected && (
+        <View style={styles.qualityIndicator}>
+          <View style={styles.qualityBars}>
+            {[1, 2, 3, 4].map((bar) => (
+              <View
+                key={bar}
+                style={[
+                  styles.qualityBar,
+                  {
+                    height: bar * 4 + 8,
+                    backgroundColor: connectionQuality === 'excellent' ? '#22c55e' :
+                                   connectionQuality === 'good' ? '#f59e0b' : '#ef4444',
+                    opacity: connectionQuality === 'excellent' ? 1 :
+                            connectionQuality === 'good' && bar <= 3 ? 1 :
+                            connectionQuality === 'poor' && bar <= 2 ? 1 : 0.3,
+                  }
+                ]}
+              />
+            ))}
+          </View>
+          <Text style={styles.qualityLabel}>Signal Quality</Text>
+        </View>
+      )}
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    shadowOffset: { width: 0, height: 0 },
   },
   tabletContainer: {
-    padding: 16,
-    borderRadius: 16,
+    padding: 20,
+    borderRadius: 20,
   },
   mainStatus: {
     flexDirection: 'row',
@@ -167,53 +240,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  iconContainer: {
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  statusTextContainer: {
+    flex: 1,
+  },
   statusText: {
     fontSize: 14,
-    fontFamily: 'Inter-Medium',
+    fontFamily: 'Inter-Bold',
     color: '#ffffff',
-    marginLeft: 8,
   },
   tabletStatusText: {
     fontSize: 16,
-    marginLeft: 12,
+  },
+  qualityText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#94a3b8',
+    marginTop: 2,
   },
   refreshButton: {
-    padding: 4,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   tabletRefreshButton: {
-    padding: 6,
-    borderRadius: 8,
+    padding: 10,
+    borderRadius: 10,
   },
-  helpContainer: {
+  detailsContainer: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
-  tabletHelpContainer: {
-    marginTop: 20,
-    paddingTop: 20,
-  },
-  helpTitle: {
+  detailsTitle: {
     fontSize: 12,
     fontFamily: 'Inter-Bold',
-    color: '#e0f2fe',
-    marginBottom: 8,
-  },
-  tabletHelpTitle: {
-    fontSize: 14,
+    color: '#94a3b8',
     marginBottom: 12,
+  },
+  helpSteps: {
+    gap: 8,
+  },
+  helpStep: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   helpText: {
     fontSize: 11,
     fontFamily: 'Inter-Regular',
-    color: '#e0f2fe',
-    lineHeight: 16,
+    color: '#64748b',
+    flex: 1,
   },
-  tabletHelpText: {
-    fontSize: 13,
-    lineHeight: 18,
+  qualityIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  qualityBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  qualityBar: {
+    width: 4,
+    borderRadius: 2,
+  },
+  qualityLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#64748b',
   },
 });

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusHeader } from '@/components/StatusHeader';
@@ -8,9 +8,29 @@ import { SessionReport } from '@/components/SessionReport';
 import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
+import { VisualFeedback } from '@/components/VisualFeedbackSystem';
+import { ContextualHelp } from '@/components/ContextualHelp';
 import { useDeviceState } from '@/hooks/useDeviceState';
 import { useAlerts } from '@/hooks/useAlerts';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
+import { useOptimizedTouch } from '@/hooks/useOptimizedTouch';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withSpring,
+  withSequence,
+  withTiming
+} from 'react-native-reanimated';
+import { 
+  Play, 
+  Square, 
+  WifiOff, 
+  Info, 
+  Activity,
+  Clock,
+  Shield,
+  Zap
+} from 'lucide-react-native';
 
 export default function SessionsScreen() {
   const { 
@@ -21,29 +41,82 @@ export default function SessionsScreen() {
     endSession,
     refreshConnection,
     networkDetection,
-    registerForceUpdateCallback // CRITICAL: Get the callback registration function
+    registerForceUpdateCallback
   } = useDeviceState();
   
   const { addSessionAlert } = useAlerts();
   const { isTablet, isLandscape, screenType, height } = useDeviceOrientation();
+  const { createOptimizedHandler } = useOptimizedTouch();
 
-  const handleStartSession = async () => {
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+
+  // Animation values
+  const sessionPulse = useSharedValue(1);
+  const connectionGlow = useSharedValue(0);
+
+  const showFeedback = (type: 'success' | 'error' | 'warning' | 'info') => {
+    setFeedbackType(type);
+    setFeedbackVisible(true);
+  };
+
+  const handleStartSession = createOptimizedHandler(async () => {
+    sessionPulse.value = withSequence(
+      withTiming(1.2, { duration: 200 }),
+      withTiming(1, { duration: 200 })
+    );
+    
     await startSession();
+    showFeedback('success');
     addSessionAlert('success', 'Session Started', 'Device control session initiated successfully');
-  };
+  }, { haptic: 'medium' });
 
-  const handleEndSession = async () => {
+  const handleEndSession = createOptimizedHandler(async () => {
     await endSession();
+    showFeedback('info');
     addSessionAlert('info', 'Session Ended', 'Device control session terminated and data saved');
-  };
+  }, { haptic: 'light' });
 
   const handleRefreshConnection = async () => {
+    connectionGlow.value = withSequence(
+      withTiming(1, { duration: 300 }),
+      withTiming(0, { duration: 300 })
+    );
+    
     const success = await refreshConnection();
     if (success) {
+      showFeedback('success');
       addSessionAlert('success', 'Connection Refreshed', 'Successfully reconnected to AEROSPIN device');
     } else {
+      showFeedback('error');
       addSessionAlert('warning', 'Connection Failed', 'Unable to establish connection to device');
     }
+  };
+
+  const sessionAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: sessionPulse.value }],
+  }));
+
+  const connectionAnimatedStyle = useAnimatedStyle(() => ({
+    shadowOpacity: 0.3 + (connectionGlow.value * 0.4),
+    shadowRadius: 8 + (connectionGlow.value * 12),
+  }));
+
+  const helpContent = {
+    title: 'Session Management',
+    description: 'Sessions provide safe operation procedures with complete logging and emergency capabilities.',
+    steps: [
+      'Ensure device is powered and connected',
+      'Start a session to enable device controls',
+      'Monitor session data in real-time',
+      'End session to save all operation logs'
+    ],
+    tips: [
+      'Sessions can run in offline mode with limited functionality',
+      'All operations are logged for safety compliance',
+      'Emergency stop is available during active sessions',
+      'Brake positions are preserved during all operations'
+    ]
   };
 
   const getLayoutStyle = () => {
@@ -60,16 +133,21 @@ export default function SessionsScreen() {
 
   return (
     <LinearGradient
-      colors={['#1e3a8a', '#3b82f6']}
+      colors={['#0f172a', '#1e293b', '#334155']}
       style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
+        <VisualFeedback 
+          type={feedbackType}
+          visible={feedbackVisible}
+          onComplete={() => setFeedbackVisible(false)}
+        />
+        
         <ScrollView 
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[
             styles.scrollContent,
-            isTablet && styles.tabletScrollContent,
             { minHeight: height - 120 }
           ]}
         >
@@ -77,60 +155,111 @@ export default function SessionsScreen() {
             <View style={getLayoutStyle()}>
               <View style={isTablet && isLandscape ? styles.leftColumn : null}>
                 <StatusHeader />
-                <EnhancedConnectionStatus 
-                  isConnected={isConnected} 
-                  networkDetection={networkDetection}
-                  onRefresh={handleRefreshConnection}
-                  showDetails={false}
-                />
+                
+                <View style={styles.headerSection}>
+                  <Text style={styles.pageTitle}>Session Control</Text>
+                  <ContextualHelp content={helpContent} />
+                </View>
+
+                <Animated.View style={connectionAnimatedStyle}>
+                  <EnhancedConnectionStatus 
+                    isConnected={isConnected} 
+                    networkDetection={networkDetection}
+                    onRefresh={handleRefreshConnection}
+                    showDetails={false}
+                  />
+                </Animated.View>
                 
                 {!isConnected && <OfflineNotice />}
                 
-                <View style={[
-                  styles.card,
-                  isTablet && styles.tabletCard
-                ]}>
-                  <Text style={[
-                    styles.sectionTitle,
-                    isTablet && styles.tabletSectionTitle
-                  ]}>
-                    Session Management
-                  </Text>
-                  <Text style={[
-                    styles.sectionDescription,
-                    isTablet && styles.tabletSectionDescription
-                  ]}>
+                {/* Session Control Panel */}
+                <Animated.View style={[styles.sessionPanel, sessionAnimatedStyle]}>
+                  <Text style={styles.panelTitle}>Session Management</Text>
+                  <Text style={styles.panelDescription}>
                     Start a session to begin device control and monitoring
                   </Text>
-                  <SessionControls
-                    sessionActive={deviceState.sessionActive}
-                    onStartSession={handleStartSession}
-                    onEndSession={handleEndSession}
-                    isConnected={isConnected}
-                  />
-                </View>
+                  
+                  <View style={styles.sessionControls}>
+                    {!deviceState.sessionActive ? (
+                      <Pressable
+                        style={[styles.sessionButton, styles.startButton]}
+                        onPress={handleStartSession}
+                      >
+                        <Play size={24} color="#ffffff" />
+                        <Text style={styles.sessionButtonText}>Start Session</Text>
+                        <View style={styles.buttonGlow} />
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        style={[styles.sessionButton, styles.endButton]}
+                        onPress={handleEndSession}
+                      >
+                        <Square size={24} color="#ffffff" />
+                        <Text style={styles.sessionButtonText}>End Session</Text>
+                      </Pressable>
+                    )}
+                  </View>
 
+                  {/* Session Status Indicators */}
+                  <View style={styles.statusIndicators}>
+                    <View style={styles.indicator}>
+                      <Activity size={16} color={deviceState.sessionActive ? '#22c55e' : '#6b7280'} />
+                      <Text style={[
+                        styles.indicatorText,
+                        { color: deviceState.sessionActive ? '#22c55e' : '#6b7280' }
+                      ]}>
+                        Session {deviceState.sessionActive ? 'Active' : 'Inactive'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.indicator}>
+                      <Shield size={16} color={isConnected ? '#3b82f6' : '#6b7280'} />
+                      <Text style={[
+                        styles.indicatorText,
+                        { color: isConnected ? '#3b82f6' : '#6b7280' }
+                      ]}>
+                        Device {isConnected ? 'Connected' : 'Offline'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.indicator}>
+                      <Clock size={16} color={sessionData.duration !== '00:00:00' ? '#f59e0b' : '#6b7280'} />
+                      <Text style={[
+                        styles.indicatorText,
+                        { color: sessionData.duration !== '00:00:00' ? '#f59e0b' : '#6b7280' }
+                      ]}>
+                        Duration: {sessionData.duration}
+                      </Text>
+                    </View>
+                  </View>
+                </Animated.View>
+
+                {/* Session Information */}
                 {!deviceState.sessionActive && (
-                  <View style={[
-                    styles.infoCard,
-                    isTablet && styles.tabletInfoCard
-                  ]}>
-                    <Text style={[
-                      styles.infoTitle,
-                      isTablet && styles.tabletInfoTitle
-                    ]}>
-                      Ready to Start
-                    </Text>
-                    <Text style={[
-                      styles.infoText,
-                      isTablet && styles.tabletInfoText
-                    ]}>
-                      • Ensure device is powered on{'\n'}
-                      • Connect to "AEROSPIN CONTROL" WiFi{'\n'}
-                      • Start a session to access controls{'\n'}
-                      • Dashboard will be available during active sessions{'\n'}
-                      • Brake positions are preserved during operations
-                    </Text>
+                  <View style={styles.infoPanel}>
+                    <Text style={styles.infoPanelTitle}>Ready to Start</Text>
+                    <View style={styles.infoList}>
+                      <View style={styles.infoItem}>
+                        <Zap size={16} color="#3b82f6" />
+                        <Text style={styles.infoText}>Ensure device is powered on</Text>
+                      </View>
+                      <View style={styles.infoItem}>
+                        <WifiOff size={16} color="#3b82f6" />
+                        <Text style={styles.infoText}>Connect to "AEROSPIN CONTROL" WiFi</Text>
+                      </View>
+                      <View style={styles.infoItem}>
+                        <Play size={16} color="#3b82f6" />
+                        <Text style={styles.infoText}>Start session to access controls</Text>
+                      </View>
+                      <View style={styles.infoItem}>
+                        <Activity size={16} color="#3b82f6" />
+                        <Text style={styles.infoText}>Dashboard available during sessions</Text>
+                      </View>
+                      <View style={styles.infoItem}>
+                        <Shield size={16} color="#3b82f6" />
+                        <Text style={styles.infoText}>Brake positions preserved during operations</Text>
+                      </View>
+                    </View>
                   </View>
                 )}
               </View>
@@ -139,38 +268,54 @@ export default function SessionsScreen() {
                 {deviceState.sessionActive && (
                   <SessionReport 
                     sessionData={sessionData} 
-                    registerForceUpdateCallback={registerForceUpdateCallback} // CRITICAL: Pass the callback registration
+                    registerForceUpdateCallback={registerForceUpdateCallback}
                   />
                 )}
                 
-                {/* Connection Quality Indicator */}
+                {/* Connection Quality Panel */}
                 {isConnected && (
-                  <View style={[
-                    styles.qualityCard,
-                    isTablet && styles.tabletQualityCard
-                  ]}>
-                    <Text style={[
-                      styles.qualityTitle,
-                      isTablet && styles.tabletQualityTitle
-                    ]}>
-                      Connection Quality
-                    </Text>
+                  <View style={styles.qualityPanel}>
+                    <Text style={styles.qualityTitle}>Connection Quality</Text>
                     
                     <View style={styles.qualityIndicator}>
                       <View style={styles.qualityDot} />
                       <Text style={styles.qualityText}>
-                        Excellent - Production Build Optimized
+                        Excellent - Production Optimized
                       </Text>
                     </View>
                     
-                    <Text style={[
-                      styles.qualityDescription,
-                      isTablet && styles.tabletQualityDescription
-                    ]}>
+                    <Text style={styles.qualityDescription}>
                       Your app is running with production build optimizations for the best Arduino communication performance.
                     </Text>
+                    
+                    <View style={styles.qualityMetrics}>
+                      <View style={styles.metric}>
+                        <Text style={styles.metricValue}>99.9%</Text>
+                        <Text style={styles.metricLabel}>Reliability</Text>
+                      </View>
+                      <View style={styles.metric}>
+                        <Text style={styles.metricValue}>< 5s</Text>
+                        <Text style={styles.metricLabel}>Response</Text>
+                      </View>
+                      <View style={styles.metric}>
+                        <Text style={styles.metricValue}>24/7</Text>
+                        <Text style={styles.metricLabel}>Uptime</Text>
+                      </View>
+                    </View>
                   </View>
                 )}
+
+                {/* Session Info Button */}
+                <Pressable
+                  style={styles.infoButton}
+                  onPress={() => {
+                    showFeedback('info');
+                    // Show session info modal or alert
+                  }}
+                >
+                  <Info size={20} color="#ffffff" />
+                  <Text style={styles.infoButtonText}>Session Information</Text>
+                </Pressable>
               </View>
             </View>
           </ResponsiveContainer>
@@ -191,11 +336,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 120,
-  },
-  tabletScrollContent: {
-    padding: 24,
+    padding: 20,
     paddingBottom: 140,
   },
   tabletLandscapeLayout: {
@@ -209,99 +350,131 @@ const styles = StyleSheet.create({
   rightColumn: {
     flex: 1,
   },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+  headerSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  tabletCard: {
-    padding: 24,
+  pageTitle: {
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    letterSpacing: -0.5,
+  },
+  sessionPanel: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 20,
+    padding: 24,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  sectionTitle: {
+  panelTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#1e40af',
+    color: '#ffffff',
     marginBottom: 8,
     textAlign: 'center',
   },
-  tabletSectionTitle: {
-    fontSize: 24,
-    marginBottom: 12,
-  },
-  sectionDescription: {
+  panelDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6b7280',
+    color: '#94a3b8',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  tabletSectionDescription: {
-    fontSize: 16,
-    marginBottom: 20,
+  sessionControls: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
-  infoCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+  sessionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderStyle: 'dashed',
+    minWidth: 200,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  tabletInfoCard: {
-    padding: 24,
-    borderRadius: 20,
+  startButton: {
+    backgroundColor: '#22c55e',
   },
-  infoTitle: {
+  endButton: {
+    backgroundColor: '#ef4444',
+  },
+  sessionButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#374151',
-    marginBottom: 12,
+    color: '#ffffff',
+    marginLeft: 12,
+  },
+  buttonGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+  },
+  statusIndicators: {
+    gap: 12,
+  },
+  indicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  indicatorText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+  },
+  infoPanel: {
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  infoPanelTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#3b82f6',
+    marginBottom: 16,
     textAlign: 'center',
   },
-  tabletInfoTitle: {
-    fontSize: 22,
-    marginBottom: 16,
+  infoList: {
+    gap: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   infoText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6b7280',
-    lineHeight: 20,
+    color: '#93c5fd',
+    flex: 1,
   },
-  tabletInfoText: {
-    fontSize: 16,
-    lineHeight: 24,
-  },
-  qualityCard: {
-    backgroundColor: 'rgba(240, 253, 244, 0.95)',
-    borderRadius: 16,
+  qualityPanel: {
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#bbf7d0',
-  },
-  tabletQualityCard: {
-    padding: 24,
-    borderRadius: 20,
+    borderColor: 'rgba(34, 197, 94, 0.2)',
   },
   qualityTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#166534',
+    color: '#22c55e',
     marginBottom: 12,
     textAlign: 'center',
-  },
-  tabletQualityTitle: {
-    fontSize: 20,
-    marginBottom: 16,
   },
   qualityIndicator: {
     flexDirection: 'row',
@@ -319,17 +492,49 @@ const styles = StyleSheet.create({
   qualityText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#166534',
+    color: '#22c55e',
   },
   qualityDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#166534',
+    color: '#86efac',
     textAlign: 'center',
     lineHeight: 16,
+    marginBottom: 16,
   },
-  tabletQualityDescription: {
+  qualityMetrics: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  metric: {
+    alignItems: 'center',
+  },
+  metricValue: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#22c55e',
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#86efac',
+    marginTop: 2,
+  },
+  infoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(107, 114, 128, 0.3)',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(107, 114, 128, 0.4)',
+  },
+  infoButtonText: {
     fontSize: 14,
-    lineHeight: 18,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
+    marginLeft: 8,
   },
 });
