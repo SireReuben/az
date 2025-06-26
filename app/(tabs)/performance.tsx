@@ -11,7 +11,7 @@ import { GestureControls } from '@/components/GestureControls';
 import OptimizedControl from '@/components/OptimizedDeviceControls';
 import { useOptimizedTouch } from '@/hooks/useOptimizedTouch';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
-import { Settings, Zap, Gauge, HelpCircle } from 'lucide-react-native';
+import { Settings, Zap, Gauge, CircleHelp as HelpCircle } from 'lucide-react-native';
 
 export default function PerformanceScreen() {
   const { height } = useDeviceOrientation();
