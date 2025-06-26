@@ -4,6 +4,7 @@ import {
   Gauge, 
   Settings, 
   Bell,
+  Zap,
 } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import { Platform, StyleSheet } from 'react-native';
@@ -80,6 +81,15 @@ export default function TabLayout() {
           title: 'Dashboard',
           tabBarIcon: ({ size, color }) => (
             <Gauge size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="performance"
+        options={{
+          title: 'Performance',
+          tabBarIcon: ({ size, color }) => (
+            <Zap size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
           ),
         }}
       />
