@@ -1,0 +1,406 @@
+import React, { useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  runOnJS,
+  interpolate,
+  interpolateColor,
+} from 'react-native-reanimated';
+import { Gauge, Zap } from 'lucide-react-native';
+import { useOptimizedTouch } from '@/hooks/useOptimizedTouch';
+
+interface PremiumSpeedSliderProps {
+  value: number;
+  onValueChange: (value: number) => void;
+  disabled?: boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+const SLIDER_WIDTH = Dimensions.get('window').width - 80;
+const SLIDER_HEIGHT = 60;
+const THUMB_SIZE = 40;
+
+export function PremiumSpeedSlider({
+  value,
+  onValueChange,
+  disabled = false,
+  min = 0,
+  max = 100,
+  step = 1,
+}: PremiumSpeedSliderProps) {
+  const { triggerHaptic } = useOptimizedTouch();
+  
+  // Animation values
+  const translateX = useSharedValue(0);
+  const thumbScale = useSharedValue(1);
+  const glowOpacity = useSharedValue(0);
+  const isPressed = useSharedValue(false);
+
+  // Initialize position based on value
+  useEffect(() => {
+    const position = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
+    translateX.value = withSpring(position, { damping: 15, stiffness: 150 });
+  }, [value, min, max, translateX]);
+
+  const updateValue = useCallback((newValue: number) => {
+    const clampedValue = Math.max(min, Math.min(max, newValue));
+    const steppedValue = Math.round(clampedValue / step) * step;
+    onValueChange(steppedValue);
+  }, [onValueChange, min, max, step]);
+
+  const panGesture = Gesture.Pan()
+    .enabled(!disabled)
+    .onStart(() => {
+      isPressed.value = true;
+      thumbScale.value = withSpring(1.2, { damping: 15, stiffness: 300 });
+      glowOpacity.value = withTiming(1, { duration: 200 });
+      runOnJS(triggerHaptic)('light');
+    })
+    .onUpdate((event) => {
+      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, event.translationX + translateX.value));
+      translateX.value = newPosition;
+      
+      // Calculate new value
+      const percentage = newPosition / (SLIDER_WIDTH - THUMB_SIZE);
+      const newValue = min + percentage * (max - min);
+      
+      // Trigger haptic feedback on value change
+      const steppedValue = Math.round(newValue / step) * step;
+      if (Math.abs(steppedValue - value) >= step) {
+        runOnJS(triggerHaptic)('light');
+        runOnJS(updateValue)(steppedValue);
+      }
+    })
+    .onEnd(() => {
+      isPressed.value = false;
+      thumbScale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      glowOpacity.value = withTiming(0, { duration: 300 });
+      
+      // Snap to final position
+      const finalPosition = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
+      translateX.value = withSpring(finalPosition, { damping: 15, stiffness: 150 });
+      
+      runOnJS(triggerHaptic)('medium');
+    });
+
+  // Animated styles
+  const trackStyle = useAnimatedStyle(() => {
+    const progress = translateX.value / (SLIDER_WIDTH - THUMB_SIZE);
+    return {
+      backgroundColor: interpolateColor(
+        progress,
+        [0, 0.5, 1],
+        ['#374151', '#3b82f6', '#ef4444']
+      ),
+    };
+  });
+
+  const thumbStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { scale: thumbScale.value },
+    ],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: glowOpacity.value,
+    transform: [
+      { translateX: translateX.value },
+      { scale: thumbScale.value },
+    ],
+  }));
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: translateX.value + THUMB_SIZE / 2,
+  }));
+
+  const speedTextStyle = useAnimatedStyle(() => {
+    const progress = translateX.value / (SLIDER_WIDTH - THUMB_SIZE);
+    return {
+      color: interpolateColor(
+        progress,
+        [0, 0.5, 1],
+        ['#6b7280', '#3b82f6', '#ef4444']
+      ),
+      transform: [{ scale: isPressed.value ? withSpring(1.1) : withSpring(1) }],
+    };
+  });
+
+  return (
+    <View style={[styles.container, disabled && styles.disabled]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.titleContainer}>
+          <Gauge size={20} color="#ffffff" />
+          <Text style={styles.title}>Motor Speed Control</Text>
+        </View>
+        <Animated.Text style={[styles.speedValue, speedTextStyle]}>
+          {value}%
+        </Animated.Text>
+      </View>
+
+      {/* Speed Indicators */}
+      <View style={styles.indicators}>
+        <View style={styles.indicator}>
+          <Text style={styles.indicatorLabel}>MIN</Text>
+          <Text style={styles.indicatorValue}>{min}%</Text>
+        </View>
+        <View style={styles.indicator}>
+          <Zap size={16} color="#f59e0b" />
+          <Text style={styles.indicatorValue}>LIVE</Text>
+        </View>
+        <View style={styles.indicator}>
+          <Text style={styles.indicatorLabel}>MAX</Text>
+          <Text style={styles.indicatorValue}>{max}%</Text>
+        </View>
+      </View>
+
+      {/* Slider Container */}
+      <View style={styles.sliderContainer}>
+        {/* Track Background */}
+        <View style={styles.trackBackground}>
+          {/* Progress Track */}
+          <Animated.View style={[styles.progressTrack, progressStyle]} />
+          
+          {/* Track Overlay */}
+          <Animated.View style={[styles.trackOverlay, trackStyle]} />
+        </View>
+
+        {/* Tick Marks */}
+        <View style={styles.tickMarks}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.tickMark,
+                { left: (i * (SLIDER_WIDTH - THUMB_SIZE)) / 4 + THUMB_SIZE / 2 - 1 }
+              ]}
+            />
+          ))}
+        </View>
+
+        {/* Gesture Detector */}
+        <GestureDetector gesture={panGesture}>
+          <View style={styles.gestureArea}>
+            {/* Thumb Glow */}
+            <Animated.View style={[styles.thumbGlow, glowStyle]} />
+            
+            {/* Thumb */}
+            <Animated.View style={[styles.thumb, thumbStyle]}>
+              <View style={styles.thumbInner}>
+                <View style={styles.thumbGrip} />
+              </View>
+            </Animated.View>
+          </View>
+        </GestureDetector>
+      </View>
+
+      {/* Speed Zones */}
+      <View style={styles.speedZones}>
+        <View style={[styles.speedZone, styles.lowZone]}>
+          <Text style={styles.zoneLabel}>LOW</Text>
+          <Text style={styles.zoneRange}>0-30%</Text>
+        </View>
+        <View style={[styles.speedZone, styles.mediumZone]}>
+          <Text style={styles.zoneLabel}>MEDIUM</Text>
+          <Text style={styles.zoneRange}>31-70%</Text>
+        </View>
+        <View style={[styles.speedZone, styles.highZone]}>
+          <Text style={styles.zoneLabel}>HIGH</Text>
+          <Text style={styles.zoneRange}>71-100%</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 20,
+    padding: 24,
+    marginVertical: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  title: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+  },
+  speedValue: {
+    fontSize: 32,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+  },
+  indicators: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  indicator: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  indicatorLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter-Medium',
+    color: '#94a3b8',
+    letterSpacing: 1,
+  },
+  indicatorValue: {
+    fontSize: 12,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+  },
+  sliderContainer: {
+    height: SLIDER_HEIGHT,
+    marginBottom: 20,
+    position: 'relative',
+  },
+  trackBackground: {
+    position: 'absolute',
+    top: (SLIDER_HEIGHT - 8) / 2,
+    left: THUMB_SIZE / 2,
+    right: THUMB_SIZE / 2,
+    height: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
+    backgroundColor: 'rgba(59, 130, 246, 0.6)',
+    borderRadius: 4,
+  },
+  trackOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '100%',
+    borderRadius: 4,
+    opacity: 0.3,
+  },
+  tickMarks: {
+    position: 'absolute',
+    top: (SLIDER_HEIGHT - 8) / 2 - 4,
+    left: 0,
+    right: 0,
+    height: 16,
+  },
+  tickMark: {
+    position: 'absolute',
+    width: 2,
+    height: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 1,
+  },
+  gestureArea: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: SLIDER_HEIGHT,
+  },
+  thumbGlow: {
+    position: 'absolute',
+    top: (SLIDER_HEIGHT - THUMB_SIZE) / 2,
+    width: THUMB_SIZE + 20,
+    height: THUMB_SIZE + 20,
+    marginLeft: -10,
+    marginTop: -10,
+    borderRadius: (THUMB_SIZE + 20) / 2,
+    backgroundColor: '#3b82f6',
+    opacity: 0,
+  },
+  thumb: {
+    position: 'absolute',
+    top: (SLIDER_HEIGHT - THUMB_SIZE) / 2,
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
+    borderRadius: THUMB_SIZE / 2,
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  thumbInner: {
+    flex: 1,
+    borderRadius: THUMB_SIZE / 2,
+    backgroundColor: '#3b82f6',
+    margin: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbGrip: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#ffffff',
+    opacity: 0.8,
+  },
+  speedZones: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  speedZone: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  lowZone: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+  },
+  mediumZone: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  highZone: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  zoneLabel: {
+    fontSize: 10,
+    fontFamily: 'Inter-Bold',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+  },
+  zoneRange: {
+    fontSize: 8,
+    fontFamily: 'Inter-Medium',
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+});

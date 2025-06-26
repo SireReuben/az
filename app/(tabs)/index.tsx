@@ -8,6 +8,7 @@ import { SessionRequiredNotice } from '@/components/SessionRequiredNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
 import { VisualFeedback } from '@/components/VisualFeedbackSystem';
 import { ContextualHelp } from '@/components/ContextualHelp';
+import { PremiumSpeedSlider } from '@/components/PremiumSpeedSlider';
 import OptimizedControl from '@/components/OptimizedDeviceControls';
 import { useDeviceState } from '@/hooks/useDeviceState';
 import { useAlerts } from '@/hooks/useAlerts';
@@ -26,8 +27,6 @@ import {
   ArrowDown, 
   Square, 
   TriangleAlert as AlertTriangle, 
-  Minus, 
-  Plus,
   Gauge,
   Zap,
   Shield,
@@ -94,6 +93,10 @@ export default function DashboardScreen() {
       }
     });
   };
+
+  const handleSpeedChange = createOptimizedHandler(async (speed: number) => {
+    await handleUpdateDeviceState({ speed });
+  }, { haptic: 'light' });
 
   const handleEmergencyStop = createOptimizedHandler(async () => {
     await emergencyStop();
@@ -175,6 +178,7 @@ export default function DashboardScreen() {
     description: 'Control your AEROSPIN device with precision and safety. All operations are logged and monitored.',
     steps: [
       'Ensure device is connected before making changes',
+      'Use the premium speed slider for precise control',
       'Use emergency stop for immediate halt',
       'Monitor speed and direction indicators',
       'Check brake position before operations'
@@ -183,7 +187,8 @@ export default function DashboardScreen() {
       'Brake positions are preserved during resets',
       'Emergency stop maintains current brake position',
       'All operations provide haptic feedback',
-      'Visual indicators show real-time status'
+      'Visual indicators show real-time status',
+      'Speed slider provides smooth, precise control'
     ]
   };
 
@@ -303,6 +308,16 @@ export default function DashboardScreen() {
                     </View>
                   </View>
                 </View>
+
+                {/* Premium Speed Slider */}
+                <PremiumSpeedSlider
+                  value={deviceState.speed}
+                  onValueChange={handleSpeedChange}
+                  disabled={!isConnected}
+                  min={0}
+                  max={100}
+                  step={5}
+                />
               </View>
 
               <View style={isTablet && isLandscape ? styles.rightColumn : null}>
@@ -387,60 +402,6 @@ export default function DashboardScreen() {
                   )}
                 </View>
 
-                {/* Speed Controls */}
-                <View style={styles.controlSection}>
-                  <Text style={styles.sectionTitle}>Motor Speed</Text>
-                  
-                  <View style={styles.speedControls}>
-                    <View style={styles.speedDisplay}>
-                      <Text style={styles.speedText}>{deviceState.speed}%</Text>
-                      <View style={styles.speedBar}>
-                        <Animated.View style={[styles.speedFill, speedBarStyle]} />
-                      </View>
-                    </View>
-                    
-                    <View style={styles.speedButtons}>
-                      <OptimizedControl
-                        title="-5"
-                        icon={<Minus size={16} color="#ffffff" />}
-                        onPress={createOptimizedHandler(() => handleUpdateDeviceState({ speed: Math.max(0, deviceState.speed - 5) }), { haptic: 'light' })}
-                        disabled={!isConnected || deviceState.speed <= 0}
-                        variant="secondary"
-                      />
-                      
-                      <OptimizedControl
-                        title="+5"
-                        icon={<Plus size={16} color="#ffffff" />}
-                        onPress={createOptimizedHandler(() => handleUpdateDeviceState({ speed: Math.min(100, deviceState.speed + 5) }), { haptic: 'light' })}
-                        disabled={!isConnected || deviceState.speed >= 100}
-                        variant="secondary"
-                      />
-                    </View>
-                    
-                    <View style={styles.presetSpeeds}>
-                      {[0, 25, 50, 75, 100].map((speed) => (
-                        <Pressable
-                          key={speed}
-                          style={[
-                            styles.presetButton,
-                            deviceState.speed === speed && styles.presetActive,
-                            !isConnected && styles.presetDisabled
-                          ]}
-                          onPress={createOptimizedHandler(() => handleUpdateDeviceState({ speed }), { haptic: 'light' })}
-                          disabled={!isConnected}
-                        >
-                          <Text style={[
-                            styles.presetText,
-                            deviceState.speed === speed && styles.presetActiveText
-                          ]}>
-                            {speed}%
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                </View>
-
                 {/* Safety Notice */}
                 <View style={styles.safetyNotice}>
                   <View style={styles.safetyHeader}>
@@ -449,7 +410,7 @@ export default function DashboardScreen() {
                   </View>
                   <Text style={styles.safetyText}>
                     All operations are monitored and logged. Emergency stop maintains current brake position. 
-                    Device controls provide haptic feedback for confirmation.
+                    Use the premium speed slider for precise control with haptic feedback.
                   </Text>
                 </View>
               </View>
@@ -592,54 +553,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'space-between',
-  },
-  speedControls: {
-    gap: 16,
-  },
-  speedDisplay: {
-    alignItems: 'center',
-    gap: 12,
-  },
-  speedText: {
-    fontSize: 32,
-    fontFamily: 'Inter-Bold',
-    color: '#ffffff',
-  },
-  speedButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  presetSpeeds: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  presetButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    flex: 1,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  presetActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
-  },
-  presetDisabled: {
-    opacity: 0.5,
-  },
-  presetText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
-  },
-  presetActiveText: {
-    color: '#ffffff',
-    fontFamily: 'Inter-Bold',
   },
   safetyNotice: {
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
