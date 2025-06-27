@@ -404,7 +404,7 @@ export default function DashboardScreen() {
                 {/* Safety Notice */}
                 <View style={styles.safetyNotice}>
                   <View style={styles.safetyHeader}>
-                    <AlertTriangle size={20} color="#f59e0b" />
+                    <AlertTriangle size={20} color="#b45309" />
                     <Text style={styles.safetyTitle}>Safety Protocol</Text>
                   </View>
                   <Text style={styles.safetyText}>

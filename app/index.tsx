@@ -161,7 +161,7 @@ export default function WelcomeScreen() {
   return (
     <NetworkPermissionGuard>
       <LinearGradient
-        colors={['#0f172a', '#1e293b', '#334155', '#475569']}
+        colors={['#f0f9ff', '#e0f2fe', '#bae6fd', '#93c5fd']}
         style={[styles.container, { minHeight: height }]}
       >
         {/* Animated background particles */}
@@ -185,7 +185,9 @@ export default function WelcomeScreen() {
                 {
                   left: `${Math.random() * 100}%`,
                   top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 2}s`,
+                  width: Math.random() * 3 + 1,
+                  height: Math.random() * 3 + 1,
+                  opacity: Math.random() * 0.5 + 0.3,
                 }
               ]}
             />
@@ -444,11 +446,8 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    width: 2,
-    height: 2,
-    backgroundColor: '#60a5fa',
+    backgroundColor: '#3b82f6',
     borderRadius: 1,
-    opacity: 0.6,
   },
   responsiveContainer: {
     flex: 1,
@@ -505,7 +504,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     borderRadius: 34,
     opacity: 0.2,
-    blur: 20,
   },
   logoReflection: {
     position: 'absolute',
@@ -533,7 +531,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontFamily: 'Inter-Regular',
-    color: '#e2e8f0',
+    color: '#0f172a',
     marginBottom: 8,
     textAlign: 'center',
   },
@@ -548,7 +546,7 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 48,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     textAlign: 'center',
     letterSpacing: 4,
     marginBottom: 6,
@@ -569,7 +567,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     letterSpacing: 2,
   },
@@ -595,16 +593,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 20,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.3)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   statusText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#60a5fa',
+    color: '#1e40af',
     textAlign: 'center',
     marginBottom: 6,
   },
@@ -615,7 +618,7 @@ const styles = StyleSheet.create({
   statusSubtext: {
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
   },
   tabletStatusSubtext: {
@@ -624,16 +627,21 @@ const styles = StyleSheet.create({
   successMessage: {
     alignItems: 'center',
     marginTop: 28,
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(240, 253, 244, 0.9)',
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.3)',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   successText: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
     marginBottom: 8,
   },
   tabletSuccessText: {
@@ -643,7 +651,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 15,
     fontFamily: 'Inter-Regular',
-    color: '#86efac',
+    color: '#22c55e',
   },
   tabletLoadingText: {
     fontSize: 19,
@@ -656,7 +664,7 @@ const styles = StyleSheet.create({
   manualConnectText: {
     fontSize: 18,
     fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+    color: '#0f172a',
     textAlign: 'center',
     marginBottom: 10,
   },
@@ -667,7 +675,7 @@ const styles = StyleSheet.create({
   manualConnectSubtext: {
     fontSize: 15,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#475569',
     textAlign: 'center',
     marginBottom: 28,
     paddingHorizontal: 20,
@@ -714,7 +722,7 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#64748b',
+    color: '#475569',
     textAlign: 'center',
     letterSpacing: 1.5,
   },

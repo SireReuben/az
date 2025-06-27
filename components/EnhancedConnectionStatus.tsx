@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Wifi, WifiOff, Circle, RefreshCw, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import Animated, { 
@@ -26,6 +27,7 @@ interface EnhancedConnectionStatusProps {
     connectionQuality: 'excellent' | 'good' | 'poor' | 'none';
     networkInfo: NetworkInfo;
     detectionStatus: 'checking' | 'connected' | 'disconnected' | 'error';
+    lastError?: string | null;
   };
   onRefresh?: () => void;
   showDetails?: boolean;
@@ -45,7 +47,8 @@ export function EnhancedConnectionStatus({
     isArduinoResponding,
     connectionQuality,
     networkInfo,
-    detectionStatus
+    detectionStatus,
+    lastError
   } = networkDetection;
 
   // Pulse animation for connection status
@@ -121,9 +124,9 @@ export function EnhancedConnectionStatus({
       isTablet && styles.tabletContainer,
       animatedPulseStyle,
       {
+        backgroundColor: '#ffffff',
         shadowColor: getStatusColor(),
         borderColor: `${getStatusColor()}40`,
-        backgroundColor: '#ffffff',
       }
     ]}>
       {/* Main Status Row */}
@@ -148,6 +151,11 @@ export function EnhancedConnectionStatus({
                 Signal strength: {connectionQuality.toUpperCase()}
               </Text>
             )}
+            {lastError && !isConnected && (
+              <Text style={styles.errorText}>
+                {lastError.length > 50 ? lastError.substring(0, 50) + '...' : lastError}
+              </Text>
+            )}
           </View>
         </View>
         
@@ -159,8 +167,14 @@ export function EnhancedConnectionStatus({
               { borderColor: `${getStatusColor()}40` }
             ]}
             onPress={onRefresh}
+            activeOpacity={0.8}
           >
-            <RefreshCw size={isTablet ? 18 : 14} color={getStatusColor()} />
+            <LinearGradient
+              colors={[getStatusColor(), getStatusColor()]}
+              style={styles.refreshButtonGradient}
+            >
+              <RefreshCw size={isTablet ? 18 : 14} color="#ffffff" />
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
@@ -262,11 +276,19 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 2,
   },
+  errorText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#ef4444',
+    marginTop: 2,
+  },
   refreshButton: {
-    padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    overflow: 'hidden',
+  },
+  refreshButtonGradient: {
+    padding: 8,
   },
   tabletRefreshButton: {
     padding: 10,

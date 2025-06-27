@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusHeader } from '@/components/StatusHeader';
 import { SessionControls } from '@/components/SessionControls';
+import { SessionReport } from '@/components/SessionReport';
 import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
@@ -40,6 +41,7 @@ export default function SessionsScreen() {
     endSession,
     refreshConnection,
     networkDetection,
+    registerForceUpdateCallback
   } = useDeviceState();
   
   const { addSessionAlert } = useAlerts();
@@ -48,6 +50,7 @@ export default function SessionsScreen() {
 
   const [feedbackVisible, setFeedbackVisible] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Animation values
   const sessionPulse = useSharedValue(1);
@@ -183,33 +186,12 @@ export default function SessionsScreen() {
                   </Text>
                   
                   <View style={styles.sessionControls}>
-                    {!deviceState.sessionActive ? (
-                      <Pressable
-                        style={[styles.sessionButton, styles.startButton]}
-                        onPress={handleStartSession}
-                      >
-                        <LinearGradient
-                          colors={['#22c55e', '#16a34a']}
-                          style={styles.buttonGradient}
-                        >
-                          <Play size={24} color="#ffffff" />
-                          <Text style={styles.sessionButtonText}>Start Session</Text>
-                        </LinearGradient>
-                      </Pressable>
-                    ) : (
-                      <Pressable
-                        style={[styles.sessionButton, styles.endButton]}
-                        onPress={handleEndSession}
-                      >
-                        <LinearGradient
-                          colors={['#ef4444', '#dc2626']}
-                          style={styles.buttonGradient}
-                        >
-                          <Square size={24} color="#ffffff" />
-                          <Text style={styles.sessionButtonText}>End Session</Text>
-                        </LinearGradient>
-                      </Pressable>
-                    )}
+                    <SessionControls 
+                      sessionActive={deviceState.sessionActive}
+                      onStartSession={handleStartSession}
+                      onEndSession={handleEndSession}
+                      isConnected={isConnected}
+                    />
                   </View>
 
                   {/* Session Status Indicators */}
@@ -277,6 +259,13 @@ export default function SessionsScreen() {
               </View>
 
               <View style={isTablet && isLandscape ? styles.rightColumn : null}>
+                {deviceState.sessionActive && (
+                  <SessionReport 
+                    sessionData={sessionData} 
+                    registerForceUpdateCallback={registerForceUpdateCallback}
+                  />
+                )}
+                
                 {/* Connection Quality Panel */}
                 {isConnected && (
                   <View style={styles.qualityPanel}>
@@ -315,15 +304,111 @@ export default function SessionsScreen() {
                   style={styles.infoButton}
                   onPress={() => {
                     showFeedback('info');
+                    setShowReportModal(true);
                   }}
                 >
-                  <Info size={20} color="#1e40af" />
-                  <Text style={styles.infoButtonText}>Session Information</Text>
+                  <LinearGradient
+                    colors={['#3b82f6', '#2563eb']}
+                    style={styles.infoButtonGradient}
+                  >
+                    <Info size={20} color="#ffffff" />
+                    <Text style={styles.infoButtonText}>Session Information</Text>
+                  </LinearGradient>
                 </Pressable>
               </View>
             </View>
           </ResponsiveContainer>
         </ScrollView>
+
+        {/* Session Report Modal */}
+        <Modal
+          visible={showReportModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowReportModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Session Information</Text>
+              
+              <Text style={styles.modalSubtitle}>Current Session</Text>
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Status:</Text>
+                <Text style={[
+                  styles.modalInfoValue,
+                  { color: deviceState.sessionActive ? '#22c55e' : '#6b7280' }
+                ]}>
+                  {deviceState.sessionActive ? 'Active' : 'Inactive'}
+                </Text>
+              </View>
+              
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Start Time:</Text>
+                <Text style={styles.modalInfoValue}>
+                  {sessionData.startTime || 'Not started'}
+                </Text>
+              </View>
+              
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Duration:</Text>
+                <Text style={styles.modalInfoValue}>
+                  {sessionData.duration || '00:00:00'}
+                </Text>
+              </View>
+              
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Events Logged:</Text>
+                <Text style={styles.modalInfoValue}>
+                  {sessionData.events.length}
+                </Text>
+              </View>
+              
+              <Text style={styles.modalSubtitle}>Device Status</Text>
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Connection:</Text>
+                <Text style={[
+                  styles.modalInfoValue,
+                  { color: isConnected ? '#22c55e' : '#ef4444' }
+                ]}>
+                  {isConnected ? 'Connected' : 'Disconnected'}
+                </Text>
+              </View>
+              
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Direction:</Text>
+                <Text style={styles.modalInfoValue}>
+                  {deviceState.direction}
+                </Text>
+              </View>
+              
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Brake:</Text>
+                <Text style={styles.modalInfoValue}>
+                  {deviceState.brake}
+                </Text>
+              </View>
+              
+              <View style={styles.modalInfoItem}>
+                <Text style={styles.modalInfoLabel}>Speed:</Text>
+                <Text style={styles.modalInfoValue}>
+                  {deviceState.speed}%
+                </Text>
+              </View>
+              
+              <Pressable
+                style={styles.modalCloseButton}
+                onPress={() => setShowReportModal(false)}
+              >
+                <LinearGradient
+                  colors={['#3b82f6', '#2563eb']}
+                  style={styles.modalCloseButtonGradient}
+                >
+                  <Text style={styles.modalCloseButtonText}>Close</Text>
+                </LinearGradient>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -396,35 +481,6 @@ const styles = StyleSheet.create({
   sessionControls: {
     alignItems: 'center',
     marginBottom: 24,
-  },
-  sessionButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    minWidth: 200,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  startButton: {
-    shadowColor: '#22c55e',
-  },
-  endButton: {
-    shadowColor: '#ef4444',
-  },
-  buttonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-  },
-  sessionButtonText: {
-    fontSize: 18,
-    fontFamily: 'Inter-Bold',
-    color: '#ffffff',
-    marginLeft: 12,
   },
   statusIndicators: {
     gap: 12,
@@ -537,25 +593,94 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   infoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    overflow: 'hidden',
     shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
+  infoButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+  },
   infoButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#1e40af',
+    color: '#ffffff',
     marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#1e40af',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#3b82f6',
+    marginTop: 16,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    paddingBottom: 4,
+  },
+  modalInfoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  modalInfoLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#64748b',
+  },
+  modalInfoValue: {
+    fontSize: 14,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+  },
+  modalCloseButton: {
+    marginTop: 24,
+    borderRadius: 8,
+    overflow: 'hidden',
+    alignSelf: 'center',
+  },
+  modalCloseButtonGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#ffffff',
   },
 });

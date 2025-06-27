@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Play, Square, WifiOff, Info } from 'lucide-react-native';
 import { router } from 'expo-router';
 
@@ -49,17 +50,29 @@ export function SessionControls({ sessionActive, onStartSession, onEndSession, i
           <TouchableOpacity
             style={[styles.button, styles.startButton]}
             onPress={handleStartSession}
+            activeOpacity={0.8}
           >
-            <Play size={20} color="#ffffff" />
-            <Text style={styles.buttonText}>Start Session</Text>
+            <LinearGradient
+              colors={['#22c55e', '#16a34a']}
+              style={styles.buttonGradient}
+            >
+              <Play size={20} color="#ffffff" />
+              <Text style={styles.buttonText}>Start Session</Text>
+            </LinearGradient>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={[styles.button, styles.endButton]}
             onPress={handleEndSession}
+            activeOpacity={0.8}
           >
-            <Square size={20} color="#ffffff" />
-            <Text style={styles.buttonText}>End Session</Text>
+            <LinearGradient
+              colors={['#ef4444', '#dc2626']}
+              style={styles.buttonGradient}
+            >
+              <Square size={20} color="#ffffff" />
+              <Text style={styles.buttonText}>End Session</Text>
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
@@ -80,9 +93,15 @@ export function SessionControls({ sessionActive, onStartSession, onEndSession, i
             'Session Info',
             'Sessions provide:\n• Safe operation procedures\n• Complete operation logging\n• Emergency stop capabilities\n• Device state management\n• Automatic dashboard access'
           )}
+          activeOpacity={0.8}
         >
-          <Info size={16} color="#ffffff" />
-          <Text style={styles.secondaryButtonText}>Info</Text>
+          <LinearGradient
+            colors={['#6b7280', '#4b5563']}
+            style={styles.secondaryButtonGradient}
+          >
+            <Info size={16} color="#ffffff" />
+            <Text style={styles.secondaryButtonText}>Info</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </View>
@@ -101,37 +120,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   button: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  startButton: {
+    minWidth: 200,
+    shadowColor: '#22c55e',
+  },
+  endButton: {
+    minWidth: 200,
+    shadowColor: '#ef4444',
+  },
+  infoButton: {
+    shadowColor: '#6b7280',
+  },
+  secondaryButton: {
+    minWidth: 100,
+  },
+  buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  startButton: {
-    backgroundColor: '#22c55e',
-    minWidth: 200,
-  },
-  endButton: {
-    backgroundColor: '#ef4444',
-    minWidth: 200,
-  },
-  infoButton: {
-    backgroundColor: '#6b7280',
-  },
-  secondaryButton: {
-    minWidth: 100,
+  secondaryButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-  },
-  disabledButton: {
-    backgroundColor: '#9ca3af',
-    opacity: 0.6,
   },
   buttonText: {
     fontSize: 16,

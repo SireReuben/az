@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, PanResponder, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,7 +32,7 @@ export function PremiumSpeedSlider({
   disabled = false,
   min = 0,
   max = 100,
-  step = 1,
+  step = 5,
 }: PremiumSpeedSliderProps) {
   const { triggerHaptic } = useOptimizedTouch();
   
@@ -59,7 +60,8 @@ export function PremiumSpeedSlider({
     onValueChange(steppedValue);
   }, [onValueChange, min, max, step]);
 
-  const handlePanResponder = PanResponder.create({
+  // Create PanResponder for handling touch gestures
+  const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !disabled,
     onMoveShouldSetPanResponder: () => !disabled,
     
@@ -70,26 +72,29 @@ export function PremiumSpeedSlider({
       glowOpacity.value = withTiming(1, { duration: 200 });
       
       if (Platform.OS !== 'web') {
-        runOnJS(triggerHaptic)('light');
+        triggerHaptic('light');
       }
     },
     
     onPanResponderMove: (_, gestureState) => {
-      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, translateX.value + gestureState.dx));
+      // Calculate new position based on drag
+      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, gestureState.moveX - 40));
       translateX.value = newPosition;
       
-      // Calculate new value
+      // Calculate new value based on position
       const percentage = newPosition / (SLIDER_WIDTH - THUMB_SIZE);
       const newValue = min + percentage * (max - min);
       const steppedValue = Math.round(newValue / step) * step;
       
-      // Trigger haptic feedback on value change
-      if (Math.abs(steppedValue - localValue) >= step && Platform.OS !== 'web') {
-        runOnJS(triggerHaptic)('light');
+      // Update value if changed
+      if (steppedValue !== localValue) {
+        setLocalValue(steppedValue);
+        onValueChange(steppedValue);
+        
+        if (Platform.OS !== 'web') {
+          triggerHaptic('light');
+        }
       }
-      
-      runOnJS(setLocalValue)(steppedValue);
-      runOnJS(onValueChange)(steppedValue);
     },
     
     onPanResponderRelease: () => {
@@ -103,10 +108,10 @@ export function PremiumSpeedSlider({
       translateX.value = withSpring(finalPosition, { damping: 15, stiffness: 150 });
       
       if (Platform.OS !== 'web') {
-        runOnJS(triggerHaptic)('medium');
+        triggerHaptic('medium');
       }
     },
-  });
+  }), [disabled, min, max, step, localValue, onValueChange, triggerHaptic]);
 
   // Animated styles
   const trackStyle = useAnimatedStyle(() => {
@@ -115,7 +120,7 @@ export function PremiumSpeedSlider({
       backgroundColor: interpolateColor(
         progress,
         [0, 0.5, 1],
-        ['#374151', '#3b82f6', '#ef4444']
+        ['#64748b', '#3b82f6', '#ef4444']
       ),
     };
   });
@@ -145,7 +150,7 @@ export function PremiumSpeedSlider({
       color: interpolateColor(
         progress,
         [0, 0.5, 1],
-        ['#6b7280', '#3b82f6', '#ef4444']
+        ['#64748b', '#3b82f6', '#ef4444']
       ),
       transform: [{ scale: isPressed.value ? withSpring(1.1) : withSpring(1) }],
     };
@@ -156,7 +161,7 @@ export function PremiumSpeedSlider({
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Gauge size={20} color="#ffffff" />
+          <Gauge size={20} color="#1e40af" />
           <Text style={styles.title}>Motor Speed Control</Text>
         </View>
         <Animated.Text style={[styles.speedValue, speedTextStyle]}>
@@ -181,7 +186,7 @@ export function PremiumSpeedSlider({
       </View>
 
       {/* Slider Container */}
-      <View style={styles.sliderContainer}>
+      <View style={styles.sliderContainer} {...panResponder.panHandlers}>
         {/* Track Background */}
         <View style={styles.trackBackground}>
           {/* Progress Track */}
@@ -204,21 +209,18 @@ export function PremiumSpeedSlider({
           ))}
         </View>
 
-        {/* Gesture Area */}
-        <View 
-          style={styles.gestureArea}
-          {...handlePanResponder.panHandlers}
-        >
-          {/* Thumb Glow */}
-          <Animated.View style={[styles.thumbGlow, glowStyle]} />
-          
-          {/* Thumb */}
-          <Animated.View style={[styles.thumb, thumbStyle]}>
-            <View style={styles.thumbInner}>
-              <View style={styles.thumbGrip} />
-            </View>
-          </Animated.View>
-        </View>
+        {/* Thumb Glow */}
+        <Animated.View style={[styles.thumbGlow, glowStyle]} />
+        
+        {/* Thumb */}
+        <Animated.View style={[styles.thumb, thumbStyle]}>
+          <LinearGradient
+            colors={['#3b82f6', '#1d4ed8']}
+            style={styles.thumbInner}
+          >
+            <View style={styles.thumbGrip} />
+          </LinearGradient>
+        </Animated.View>
       </View>
 
       {/* Speed Zones */}
@@ -242,7 +244,7 @@ export function PremiumSpeedSlider({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 24,
     marginVertical: 16,
@@ -345,13 +347,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148, 163, 184, 0.6)',
     borderRadius: 1,
   },
-  gestureArea: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: SLIDER_HEIGHT,
-  },
   thumbGlow: {
     position: 'absolute',
     top: (SLIDER_HEIGHT - THUMB_SIZE) / 2,
@@ -375,12 +370,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    overflow: 'hidden',
   },
   thumbInner: {
     flex: 1,
     borderRadius: THUMB_SIZE / 2,
-    backgroundColor: '#3b82f6',
-    margin: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },

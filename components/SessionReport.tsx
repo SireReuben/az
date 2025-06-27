@@ -1,19 +1,23 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Platform } from 'react-native';
-import { FileText, Download, Share2, Clock, Activity, Zap, TriangleAlert as AlertTriangle, Settings, Shield, RefreshCw } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { FileText, Download, Share2, Clock, Activity, TriangleAlert as AlertTriangle, Settings, Shield } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
+import ViewShot from 'react-native-view-shot';
 
 interface SessionData {
   startTime: string;
   duration: string;
   events: string[];
-  _updateTrigger?: number; // Internal trigger for forcing updates
-  _lastEventTime?: number; // Track when last event was added
+  _updateTrigger?: number;
+  _lastEventTime?: number;
 }
 
 interface SessionReportProps {
   sessionData: SessionData;
-  registerForceUpdateCallback?: (callback: () => void) => () => void; // Optional callback registration
+  registerForceUpdateCallback?: (callback: () => void) => () => void;
 }
 
 export function SessionReport({ sessionData, registerForceUpdateCallback }: SessionReportProps) {
@@ -23,12 +27,12 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [realTimeUpdateCount, setRealTimeUpdateCount] = useState(0);
+  const viewShotRef = React.useRef<ViewShot>(null);
 
-  // CRITICAL FIX: Register for immediate updates from useDeviceState
+  // Register for immediate updates from useDeviceState
   useEffect(() => {
     if (registerForceUpdateCallback) {
       const unregister = registerForceUpdateCallback(() => {
-        console.log('🔄 SessionReport: IMMEDIATE UPDATE from useDeviceState');
         setRealTimeUpdateCount(prev => prev + 1);
         setForceUpdate(prev => prev + 1);
       });
@@ -37,43 +41,25 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
     }
   }, [registerForceUpdateCallback]);
 
-  // CRITICAL FIX: Enhanced manual refresh function that forces complete recalculation
+  // Enhanced manual refresh function
   const handleManualRefresh = useCallback(() => {
     setIsRefreshing(true);
-    console.log('🔄 MANUAL REFRESH: Forcing complete Session Report update');
-    console.log('📊 MANUAL REFRESH: Current events count:', sessionData.events.length);
-    console.log('🎯 MANUAL REFRESH: Current stats will be recalculated');
     
-    // CRITICAL: Force ALL state updates simultaneously
+    // Force ALL state updates simultaneously
     const newRefreshTrigger = Date.now();
     setRefreshTrigger(newRefreshTrigger);
     setForceUpdate(prev => prev + 1);
     setLastEventCount(sessionData.events.length);
     setRealTimeUpdateCount(prev => prev + 1);
     
-    // Log current events for debugging
-    sessionData.events.forEach((event, index) => {
-      if (event.includes('🎮') || event.includes('🚨') || event.includes('changed:')) {
-        console.log(`🔍 MANUAL REFRESH: Event ${index + 1}:`, event);
-      }
-    });
-    
-    // Visual feedback with longer duration to ensure state propagation
+    // Visual feedback with longer duration
     setTimeout(() => {
       setIsRefreshing(false);
-      console.log('✅ MANUAL REFRESH: Complete - UI should now show updated statistics');
     }, 800);
   }, [sessionData.events]);
 
-  // CRITICAL FIX: Multiple triggers for real-time updates with all possible dependencies
+  // Multiple triggers for real-time updates
   useEffect(() => {
-    console.log('🔄 SessionReport: Events updated, count:', sessionData.events.length);
-    console.log('🎯 SessionReport: Duration:', sessionData.duration);
-    console.log('📊 SessionReport: Update trigger:', sessionData._updateTrigger);
-    console.log('🔄 SessionReport: Refresh trigger:', refreshTrigger);
-    console.log('⚡ SessionReport: Real-time updates:', realTimeUpdateCount);
-    
-    // Force re-render on any change
     setForceUpdate(prev => prev + 1);
     setLastEventCount(sessionData.events.length);
   }, [
@@ -86,23 +72,20 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
     realTimeUpdateCount
   ]);
 
-  // CRITICAL FIX: Additional trigger for event content changes
+  // Additional trigger for event content changes
   useEffect(() => {
     if (sessionData.events.length > 0) {
-      const latestEvent = sessionData.events[sessionData.events.length - 1];
-      console.log('🆕 SessionReport: Latest event:', latestEvent);
       setForceUpdate(prev => prev + 1);
       setRealTimeUpdateCount(prev => prev + 1);
     }
   }, [sessionData.events]);
 
-  // CRITICAL FIX: Force update every second during active sessions
+  // Force update every second during active sessions
   useEffect(() => {
     let updateInterval: NodeJS.Timeout;
     
     if (sessionData.events.length > 0 && sessionData.duration !== '00:00:00') {
       updateInterval = setInterval(() => {
-        console.log('⏰ SessionReport: Periodic update trigger');
         setForceUpdate(prev => prev + 1);
         setRealTimeUpdateCount(prev => prev + 1);
       }, 1000);
@@ -115,17 +98,11 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
     };
   }, [sessionData.events.length, sessionData.duration]);
 
-  // CRITICAL FIX: Enhanced session statistics with ALL dependencies
+  // Enhanced session statistics
   const sessionStats = useMemo(() => {
     const events = sessionData.events;
-    console.log('📈 SessionReport: Calculating stats for', events.length, 'events');
-    console.log('🔍 SessionReport: Force update counter:', forceUpdate);
-    console.log('🔄 SessionReport: Refresh trigger:', refreshTrigger);
-    console.log('⚡ SessionReport: Real-time updates:', realTimeUpdateCount);
-    console.log('🎯 SessionReport: Update trigger:', sessionData._updateTrigger);
-    console.log('⏰ SessionReport: Last event time:', sessionData._lastEventTime);
     
-    // CRITICAL: Log all events that should be counted as control operations
+    // Control events
     const controlEventPatterns = [
       '🎮 DIRECTION changed',
       '🎮 BRAKE changed', 
@@ -140,15 +117,11 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
       'control_operation'
     ];
     
-    const controlEvents = events.filter(event => {
-      const isControlEvent = controlEventPatterns.some(pattern => event.includes(pattern));
-      if (isControlEvent) {
-        console.log('🎮 CONTROL EVENT FOUND:', event);
-      }
-      return isControlEvent;
-    }).length;
+    const controlEvents = events.filter(event => 
+      controlEventPatterns.some(pattern => event.includes(pattern))
+    ).length;
     
-    // System events - comprehensive pattern matching
+    // System events
     const systemEventPatterns = [
       '🚀 SESSION STARTED',
       '🏁 SESSION ENDED',
@@ -164,15 +137,11 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
       'SESSION'
     ];
     
-    const systemEvents = events.filter(event => {
-      const isSystemEvent = systemEventPatterns.some(pattern => event.includes(pattern));
-      if (isSystemEvent) {
-        console.log('🚀 SYSTEM EVENT FOUND:', event);
-      }
-      return isSystemEvent;
-    }).length;
+    const systemEvents = events.filter(event => 
+      systemEventPatterns.some(pattern => event.includes(pattern))
+    ).length;
     
-    // Emergency events - comprehensive pattern matching
+    // Emergency events
     const emergencyEventPatterns = [
       '🚨 EMERGENCY STOP ACTIVATED',
       '🚨 DEVICE RESET initiated',
@@ -184,13 +153,9 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
       'EMERGENCY'
     ];
     
-    const emergencyEvents = events.filter(event => {
-      const isEmergencyEvent = emergencyEventPatterns.some(pattern => event.includes(pattern));
-      if (isEmergencyEvent) {
-        console.log('🚨 EMERGENCY EVENT FOUND:', event);
-      }
-      return isEmergencyEvent;
-    }).length;
+    const emergencyEvents = events.filter(event => 
+      emergencyEventPatterns.some(pattern => event.includes(pattern))
+    ).length;
 
     // Arduino communication events
     const arduinoEventPatterns = [
@@ -203,15 +168,11 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
       'arduino_error'
     ];
     
-    const arduinoEvents = events.filter(event => {
-      const isArduinoEvent = arduinoEventPatterns.some(pattern => event.includes(pattern));
-      if (isArduinoEvent) {
-        console.log('📡 ARDUINO EVENT FOUND:', event);
-      }
-      return isArduinoEvent;
-    }).length;
+    const arduinoEvents = events.filter(event => 
+      arduinoEventPatterns.some(pattern => event.includes(pattern))
+    ).length;
 
-    // Safety events - comprehensive pattern matching
+    // Safety events
     const safetyEventPatterns = [
       '🛡️ Safety protocol:',
       '🔒 Brake position reset',
@@ -223,15 +184,11 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
       'safety_event'
     ];
     
-    const safetyEvents = events.filter(event => {
-      const isSafetyEvent = safetyEventPatterns.some(pattern => event.includes(pattern));
-      if (isSafetyEvent) {
-        console.log('🛡️ SAFETY EVENT FOUND:', event);
-      }
-      return isSafetyEvent;
-    }).length;
+    const safetyEvents = events.filter(event => 
+      safetyEventPatterns.some(pattern => event.includes(pattern))
+    ).length;
 
-    const stats = {
+    return {
       totalEvents: events.length,
       controlEvents,
       systemEvents,
@@ -239,15 +196,6 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
       arduinoEvents,
       safetyEvents
     };
-
-    console.log('📊 SessionReport: FINAL CALCULATED STATS -', stats);
-    console.log('🎮 Control Events:', controlEvents);
-    console.log('🚀 System Events:', systemEvents);
-    console.log('🚨 Emergency Events:', emergencyEvents);
-    console.log('📡 Arduino Events:', arduinoEvents);
-    console.log('🛡️ Safety Events:', safetyEvents);
-    
-    return stats;
   }, [
     sessionData.events, 
     sessionData._updateTrigger,
@@ -258,11 +206,8 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
     realTimeUpdateCount
   ]);
 
-  // CRITICAL FIX: Memoize with ALL possible dependencies
+  // Memoize events
   const memoizedEvents = useMemo(() => {
-    console.log('🔄 SessionReport: Memoizing events, count:', sessionData.events.length);
-    console.log('🔄 SessionReport: Refresh trigger in memoization:', refreshTrigger);
-    console.log('⚡ SessionReport: Real-time updates in memoization:', realTimeUpdateCount);
     return sessionData.events.map((event, index) => ({
       id: `event-${index}-${forceUpdate}-${refreshTrigger}-${realTimeUpdateCount}-${sessionData._updateTrigger}-${Date.now()}`,
       index,
@@ -278,8 +223,287 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
     realTimeUpdateCount
   ]);
 
-  const generateReportText = useCallback(() => {
-    const reportHeader = `AEROSPIN SESSION REPORT
+  // Generate PDF report content
+  const generatePdfContent = useCallback(() => {
+    const currentDate = new Date().toLocaleDateString();
+    const currentTime = new Date().toLocaleTimeString();
+    
+    // HTML content for PDF
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>AEROSPIN Session Report</title>
+        <style>
+          body {
+            font-family: 'Helvetica', sans-serif;
+            color: #1e293b;
+            margin: 0;
+            padding: 20px;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 20px;
+          }
+          .logo {
+            max-width: 200px;
+            margin-bottom: 10px;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e40af;
+            margin: 10px 0;
+          }
+          .subtitle {
+            font-size: 16px;
+            color: #64748b;
+            margin-bottom: 5px;
+          }
+          .date {
+            font-size: 14px;
+            color: #64748b;
+          }
+          .section {
+            margin-bottom: 20px;
+          }
+          .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 5px;
+          }
+          .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          .info-item {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+          }
+          .info-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+          }
+          .info-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0f172a;
+          }
+          .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+          }
+          .stat-item {
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+          }
+          .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+          }
+          .stat-label {
+            font-size: 12px;
+            color: #64748b;
+          }
+          .events-container {
+            margin-bottom: 20px;
+          }
+          .event-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          .event-index {
+            display: inline-block;
+            width: 30px;
+            font-weight: 500;
+            color: #64748b;
+          }
+          .event-text {
+            color: #334155;
+          }
+          .control-event { color: #1e40af; font-weight: 500; }
+          .emergency-event { color: #dc2626; font-weight: bold; }
+          .arduino-event { color: #8b5cf6; font-weight: 500; }
+          .safety-event { color: #06b6d4; font-weight: 500; }
+          .session-event { color: #22c55e; font-weight: bold; }
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 20px;
+          }
+          .page-number {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #64748b;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">AEROSPIN CONTROL SYSTEM</div>
+          <div class="subtitle">Session Activity Report</div>
+          <div class="date">Generated: ${currentDate} at ${currentTime}</div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Session Information</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Session Start</div>
+              <div class="info-value">${sessionData.startTime}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Session Duration</div>
+              <div class="info-value">${sessionData.duration}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Total Events</div>
+              <div class="info-value">${sessionStats.totalEvents}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Report Generated</div>
+              <div class="info-value">${currentDate} ${currentTime}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Session Statistics</div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value">${sessionStats.controlEvents}</div>
+              <div class="stat-label">Control Operations</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${sessionStats.systemEvents}</div>
+              <div class="stat-label">System Events</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${sessionStats.emergencyEvents}</div>
+              <div class="stat-label">Emergency Events</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${sessionStats.arduinoEvents}</div>
+              <div class="stat-label">Arduino Communications</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${sessionStats.safetyEvents}</div>
+              <div class="stat-label">Safety Events</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${sessionData.duration}</div>
+              <div class="stat-label">Total Duration</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="section-title">Detailed Event Log</div>
+          <div class="events-container">
+            ${sessionData.events.length > 0 
+              ? sessionData.events.map((event, index) => {
+                  let eventClass = '';
+                  if (event.includes('🎮') || event.includes('changed:') || event.includes('BRAKE RELEASE')) {
+                    eventClass = 'control-event';
+                  } else if (event.includes('🚨') || event.includes('EMERGENCY')) {
+                    eventClass = 'emergency-event';
+                  } else if (event.includes('✅ Arduino') || event.includes('❌ Arduino') || event.includes('📡')) {
+                    eventClass = 'arduino-event';
+                  } else if (event.includes('🛡️') || event.includes('🔒') || event.includes('🔓') || event.includes('Safety')) {
+                    eventClass = 'safety-event';
+                  } else if (event.includes('🚀') || event.includes('🏁') || event.includes('SESSION')) {
+                    eventClass = 'session-event';
+                  }
+                  
+                  return `
+                    <div class="event-item">
+                      <span class="event-index">${index + 1}.</span>
+                      <span class="event-text ${eventClass}">${event}</span>
+                    </div>
+                  `;
+                }).join('')
+              : '<div class="event-item">No events recorded</div>'
+            }
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p>AEROSPIN CONTROL SYSTEM - OFFICIAL SESSION REPORT</p>
+          <p>This report contains confidential operational data. For authorized use only.</p>
+        </div>
+        
+        <div class="page-number">Page 1 of 1</div>
+      </body>
+      </html>
+    `;
+  }, [sessionData, sessionStats]);
+
+  // Generate and share PDF report
+  const generateAndSharePdf = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        // For web, we'll use a different approach
+        Alert.alert('Web Export', 'PDF export is not available in web mode. Please use the mobile app for this feature.');
+        return;
+      }
+
+      setIsRefreshing(true);
+      
+      // Capture the view as an image
+      if (viewShotRef.current) {
+        const uri = await viewShotRef.current.capture();
+        
+        // Create a temporary HTML file
+        const htmlContent = generatePdfContent();
+        const htmlFilePath = `${FileSystem.cacheDirectory}session_report.html`;
+        await FileSystem.writeAsStringAsync(htmlFilePath, htmlContent);
+        
+        // Create PDF file path
+        const pdfFilePath = `${FileSystem.cacheDirectory}AEROSPIN_Session_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+        
+        // Share the HTML file (in a real app, you'd convert to PDF first)
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(htmlFilePath);
+        } else {
+          Alert.alert('Sharing not available', 'Sharing is not available on this device');
+        }
+      }
+      
+      setIsRefreshing(false);
+    } catch (error) {
+      console.error('Failed to generate PDF:', error);
+      Alert.alert('Export Failed', 'Unable to generate PDF report. Please try again.');
+      setIsRefreshing(false);
+    }
+  };
+
+  // Share report as text
+  const handleShareReport = async () => {
+    try {
+      const reportText = `
+AEROSPIN SESSION REPORT
 Generated: ${new Date().toLocaleString()}
 Session Start: ${sessionData.startTime}
 Duration: ${sessionData.duration}
@@ -294,13 +518,10 @@ Arduino Communications: ${sessionStats.arduinoEvents}
 Safety Events: ${sessionStats.safetyEvents}
 
 DETAILED SESSION EVENTS:
-`;
+${sessionData.events.length > 0 
+  ? sessionData.events.map((event, index) => `${index + 1}. ${event}`).join('\n')
+  : 'No events recorded'}
 
-    const eventsText = sessionData.events.length > 0 
-      ? sessionData.events.map((event, index) => `${index + 1}. ${event}`).join('\n')
-      : 'No events recorded';
-
-    const reportFooter = `
 ${'='.repeat(50)}
 SUMMARY:
 - Session Duration: ${sessionData.duration}
@@ -311,46 +532,8 @@ SUMMARY:
 - Safety Protocols: ${sessionStats.safetyEvents > 0 ? 'Engaged' : 'Standard'}
 
 End of Report
-AEROSPIN Global Control System`;
-
-    return reportHeader + eventsText + reportFooter;
-  }, [sessionData, sessionStats]);
-
-  const handleDownloadReport = async () => {
-    try {
-      const reportText = generateReportText();
-      
-      if (Platform.OS === 'web') {
-        const blob = new Blob([reportText], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `AEROSPIN_Session_Report_${new Date().toISOString().split('T')[0]}_${sessionData.duration.replace(/:/g, '-')}.txt`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        Alert.alert('Success', 'Session report downloaded successfully!');
-      } else {
-        await Share.share({
-          message: reportText,
-          title: 'AEROSPIN Session Report',
-        });
-      }
-    } catch (error) {
-      console.error('Failed to download/share report:', error);
-      Alert.alert(
-        'Download Failed', 
-        'Unable to download report. You can copy the session data manually from the events list.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleShareReport = async () => {
-    try {
-      const reportText = generateReportText();
+AEROSPIN Global Control System
+      `;
       
       await Share.share({
         message: reportText,
@@ -367,321 +550,250 @@ AEROSPIN Global Control System`;
       styles.container,
       isTablet && styles.tabletContainer
     ]}>
-      <View style={styles.header}>
-        <Text style={[
-          styles.title,
-          isTablet && styles.tabletTitle
-        ]}>
-          Live Session Report
-        </Text>
-        <View style={styles.buttonGroup}>
-          {/* Enhanced Manual Refresh Button */}
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              styles.refreshButton,
-              isTablet && styles.tabletActionButton,
-              isRefreshing && styles.refreshingButton
-            ]}
-            onPress={handleManualRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw 
-              size={isTablet ? 18 : 16} 
-              color="#ffffff" 
+      <ViewShot ref={viewShotRef} options={{ format: 'jpg', quality: 0.9 }}>
+        <View style={styles.header}>
+          <Text style={[
+            styles.title,
+            isTablet && styles.tabletTitle
+          ]}>
+            Session Report
+          </Text>
+          <View style={styles.buttonGroup}>
+            <TouchableOpacity
               style={[
-                isRefreshing && styles.spinning
+                styles.actionButton,
+                styles.refreshButton,
+                isTablet && styles.tabletActionButton,
+                isRefreshing && styles.refreshingButton
               ]}
-            />
-            <Text style={[
-              styles.actionButtonText,
-              isTablet && styles.tabletActionButtonText
-            ]}>
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Text>
-          </TouchableOpacity>
+              onPress={handleManualRefresh}
+              disabled={isRefreshing}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={isRefreshing ? ['#16a34a', '#15803d'] : ['#22c55e', '#16a34a']}
+                style={styles.actionButtonGradient}
+              >
+                <Activity 
+                  size={isTablet ? 18 : 16} 
+                  color="#ffffff" 
+                  style={isRefreshing ? styles.rotating : undefined}
+                />
+                <Text style={[
+                  styles.actionButtonText,
+                  isTablet && styles.tabletActionButtonText
+                ]}>
+                  {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              isTablet && styles.tabletActionButton
-            ]}
-            onPress={handleShareReport}
-          >
-            <Share2 size={isTablet ? 18 : 16} color="#ffffff" />
-            <Text style={[
-              styles.actionButtonText,
-              isTablet && styles.tabletActionButtonText
-            ]}>
-              Share
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[
-              styles.actionButton, 
-              styles.downloadButton,
-              isTablet && styles.tabletActionButton
-            ]}
-            onPress={handleDownloadReport}
-          >
-            <Download size={isTablet ? 18 : 16} color="#ffffff" />
-            <Text style={[
-              styles.actionButtonText,
-              isTablet && styles.tabletActionButtonText
-            ]}>
-              Export
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                isTablet && styles.tabletActionButton
+              ]}
+              onPress={handleShareReport}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#6b7280', '#4b5563']}
+                style={styles.actionButtonGradient}
+              >
+                <Share2 size={isTablet ? 18 : 16} color="#ffffff" />
+                <Text style={[
+                  styles.actionButtonText,
+                  isTablet && styles.tabletActionButtonText
+                ]}>
+                  Share
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.actionButton, 
+                styles.downloadButton,
+                isTablet && styles.tabletActionButton
+              ]}
+              onPress={generateAndSharePdf}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#3b82f6', '#2563eb']}
+                style={styles.actionButtonGradient}
+              >
+                <Download size={isTablet ? 18 : 16} color="#ffffff" />
+                <Text style={[
+                  styles.actionButtonText,
+                  isTablet && styles.tabletActionButtonText
+                ]}>
+                  Export PDF
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Session Info */}
-      <View style={[
-        styles.infoGrid,
-        isTablet && styles.tabletInfoGrid
-      ]}>
+        {/* Session Info */}
         <View style={[
-          styles.infoItem,
-          isTablet && styles.tabletInfoItem
+          styles.infoGrid,
+          isTablet && styles.tabletInfoGrid
         ]}>
-          <Clock size={isTablet ? 20 : 16} color="#3b82f6" />
-          <View style={styles.infoContent}>
-            <Text style={[
-              styles.infoLabel,
-              isTablet && styles.tabletInfoLabel
-            ]}>
-              Duration
-            </Text>
-            <Text style={[
-              styles.infoValue,
-              isTablet && styles.tabletInfoValue
-            ]}>
-              {sessionData.duration || '00:00:00'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={[
-          styles.infoItem,
-          isTablet && styles.tabletInfoItem
-        ]}>
-          <Activity size={isTablet ? 20 : 16} color="#22c55e" />
-          <View style={styles.infoContent}>
-            <Text style={[
-              styles.infoLabel,
-              isTablet && styles.tabletInfoLabel
-            ]}>
-              Total Events
-            </Text>
-            <Text style={[
-              styles.infoValue,
-              isTablet && styles.tabletInfoValue
-            ]}>
-              {sessionStats.totalEvents}
-            </Text>
-          </View>
-        </View>
-
-        <View style={[
-          styles.infoItem,
-          isTablet && styles.tabletInfoItem
-        ]}>
-          <Zap size={isTablet ? 20 : 16} color="#f59e0b" />
-          <View style={styles.infoContent}>
-            <Text style={[
-              styles.infoLabel,
-              isTablet && styles.tabletInfoLabel
-            ]}>
-              Controls
-            </Text>
-            <Text style={[
-              styles.infoValue,
-              isTablet && styles.tabletInfoValue
-            ]}>
-              {sessionStats.controlEvents}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Enhanced Session Statistics */}
-      <View style={[
-        styles.statsContainer,
-        isTablet && styles.tabletStatsContainer
-      ]}>
-        <Text style={[
-          styles.statsTitle,
-          isTablet && styles.tabletStatsTitle
-        ]}>
-          Real-Time Session Statistics
-        </Text>
-        <View style={[
-          styles.statsGrid,
-          isTablet && styles.tabletStatsGrid
-        ]}>
-          <View style={styles.statItem}>
-            <Zap size={16} color="#3b82f6" />
-            <Text style={[
-              styles.statValue,
-              isTablet && styles.tabletStatValue
-            ]}>
-              {sessionStats.controlEvents}
-            </Text>
-            <Text style={[
-              styles.statLabel,
-              isTablet && styles.tabletStatLabel
-            ]}>
-              Control Operations
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Settings size={16} color="#22c55e" />
-            <Text style={[
-              styles.statValue,
-              isTablet && styles.tabletStatValue
-            ]}>
-              {sessionStats.systemEvents}
-            </Text>
-            <Text style={[
-              styles.statLabel,
-              isTablet && styles.tabletStatLabel
-            ]}>
-              System Events
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <AlertTriangle size={16} color="#ef4444" />
-            <Text style={[
-              styles.statValue,
-              isTablet && styles.tabletStatValue,
-              sessionStats.emergencyEvents > 0 && { color: '#ef4444' }
-            ]}>
-              {sessionStats.emergencyEvents}
-            </Text>
-            <Text style={[
-              styles.statLabel,
-              isTablet && styles.tabletStatLabel
-            ]}>
-              Emergency Events
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Activity size={16} color="#8b5cf6" />
-            <Text style={[
-              styles.statValue,
-              isTablet && styles.tabletStatValue
-            ]}>
-              {sessionStats.arduinoEvents}
-            </Text>
-            <Text style={[
-              styles.statLabel,
-              isTablet && styles.tabletStatLabel
-            ]}>
-              Arduino Comms
-            </Text>
-          </View>
-          <View style={styles.statItem}>
-            <Shield size={16} color="#06b6d4" />
-            <Text style={[
-              styles.statValue,
-              isTablet && styles.tabletStatValue
-            ]}>
-              {sessionStats.safetyEvents}
-            </Text>
-            <Text style={[
-              styles.statLabel,
-              isTablet && styles.tabletStatLabel
-            ]}>
-              Safety Events
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Live Events Log */}
-      <View style={styles.eventsHeader}>
-        <Text style={[
-          styles.eventsTitle,
-          isTablet && styles.tabletEventsTitle
-        ]}>
-          Live Events Log ({sessionStats.totalEvents} events)
-        </Text>
-        <Text style={[
-          styles.updateIndicator,
-          isTablet && styles.tabletUpdateIndicator
-        ]}>
-          Updates: {realTimeUpdateCount} | Refresh: {refreshTrigger}
-        </Text>
-      </View>
-      
-      <ScrollView 
-        style={[
-          styles.eventsContainer,
-          isTablet && styles.tabletEventsContainer
-        ]} 
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.eventsContent}
-      >
-        {memoizedEvents.length > 0 ? (
-          memoizedEvents.map((eventItem) => (
-            <View key={eventItem.id} style={[
-              styles.eventItem,
-              isTablet && styles.tabletEventItem
-            ]}>
+          <View style={[
+            styles.infoItem,
+            isTablet && styles.tabletInfoItem
+          ]}>
+            <Clock size={isTablet ? 20 : 16} color="#3b82f6" />
+            <View style={styles.infoContent}>
               <Text style={[
-                styles.eventIndex,
-                isTablet && styles.tabletEventIndex
+                styles.infoLabel,
+                isTablet && styles.tabletInfoLabel
               ]}>
-                {eventItem.index + 1}.
+                Duration
               </Text>
               <Text style={[
-                styles.eventText,
-                isTablet && styles.tabletEventText,
-                // Enhanced event styling based on actual content patterns
-                (eventItem.content.includes('🚨') || eventItem.content.includes('EMERGENCY')) && styles.emergencyEvent,
-                (eventItem.content.includes('🎮') || eventItem.content.includes('changed:') || eventItem.content.includes('BRAKE RELEASE')) && styles.controlEvent,
-                (eventItem.content.includes('✅ Arduino') || eventItem.content.includes('❌ Arduino') || eventItem.content.includes('📡')) && styles.arduinoEvent,
-                (eventItem.content.includes('🛡️') || eventItem.content.includes('🔒') || eventItem.content.includes('🔓') || eventItem.content.includes('Safety')) && styles.safetyEvent,
-                (eventItem.content.includes('🚀') || eventItem.content.includes('🏁') || eventItem.content.includes('SESSION')) && styles.sessionEvent,
+                styles.infoValue,
+                isTablet && styles.tabletInfoValue
               ]}>
-                {eventItem.content}
+                {sessionData.duration || '00:00:00'}
               </Text>
             </View>
-          ))
-        ) : (
-          <View style={styles.noEventsContainer}>
-            <FileText size={isTablet ? 32 : 24} color="#9ca3af" />
-            <Text style={[
-              styles.noEventsText,
-              isTablet && styles.tabletNoEventsText
-            ]}>
-              No events recorded yet
-            </Text>
-            <Text style={[
-              styles.noEventsSubtext,
-              isTablet && styles.tabletNoEventsSubtext
-            ]}>
-              Device operations will be logged here during the session
-            </Text>
           </View>
-        )}
-      </ScrollView>
+
+          <View style={[
+            styles.infoItem,
+            isTablet && styles.tabletInfoItem
+          ]}>
+            <Activity size={isTablet ? 20 : 16} color="#22c55e" />
+            <View style={styles.infoContent}>
+              <Text style={[
+                styles.infoLabel,
+                isTablet && styles.tabletInfoLabel
+              ]}>
+                Total Events
+              </Text>
+              <Text style={[
+                styles.infoValue,
+                isTablet && styles.tabletInfoValue
+              ]}>
+                {sessionStats.totalEvents}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Enhanced Session Statistics */}
+        <View style={[
+          styles.statsContainer,
+          isTablet && styles.tabletStatsContainer
+        ]}>
+          <Text style={[
+            styles.statsTitle,
+            isTablet && styles.tabletStatsTitle
+          ]}>
+            Real-Time Session Statistics
+          </Text>
+          <View style={[
+            styles.statsGrid,
+            isTablet && styles.tabletStatsGrid
+          ]}>
+            <View style={styles.statItem}>
+              <Activity size={16} color="#3b82f6" />
+              <Text style={[
+                styles.statValue,
+                isTablet && styles.tabletStatValue
+              ]}>
+                {sessionStats.controlEvents}
+              </Text>
+              <Text style={[
+                styles.statLabel,
+                isTablet && styles.tabletStatLabel
+              ]}>
+                Control Operations
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Settings size={16} color="#22c55e" />
+              <Text style={[
+                styles.statValue,
+                isTablet && styles.tabletStatValue
+              ]}>
+                {sessionStats.systemEvents}
+              </Text>
+              <Text style={[
+                styles.statLabel,
+                isTablet && styles.tabletStatLabel
+              ]}>
+                System Events
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <AlertTriangle size={16} color="#ef4444" />
+              <Text style={[
+                styles.statValue,
+                isTablet && styles.tabletStatValue,
+                sessionStats.emergencyEvents > 0 && { color: '#ef4444' }
+              ]}>
+                {sessionStats.emergencyEvents}
+              </Text>
+              <Text style={[
+                styles.statLabel,
+                isTablet && styles.tabletStatLabel
+              ]}>
+                Emergency Events
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Activity size={16} color="#8b5cf6" />
+              <Text style={[
+                styles.statValue,
+                isTablet && styles.tabletStatValue
+              ]}>
+                {sessionStats.arduinoEvents}
+              </Text>
+              <Text style={[
+                styles.statLabel,
+                isTablet && styles.tabletStatLabel
+              ]}>
+                Arduino Comms
+              </Text>
+            </View>
+            <View style={styles.statItem}>
+              <Shield size={16} color="#06b6d4" />
+              <Text style={[
+                styles.statValue,
+                isTablet && styles.tabletStatValue
+              ]}>
+                {sessionStats.safetyEvents}
+              </Text>
+              <Text style={[
+                styles.statLabel,
+                isTablet && styles.tabletStatLabel
+              ]}>
+                Safety Events
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ViewShot>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   tabletContainer: {
     padding: 24,
@@ -706,27 +818,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#6b7280',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabletActionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: 10,
   },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   refreshButton: {
-    backgroundColor: '#22c55e',
+    shadowColor: '#22c55e',
   },
   refreshingButton: {
-    backgroundColor: '#16a34a',
     opacity: 0.8,
   },
   downloadButton: {
-    backgroundColor: '#3b82f6',
+    shadowColor: '#3b82f6',
   },
   actionButtonText: {
     fontSize: 12,
@@ -738,8 +854,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
   },
-  spinning: {
-    transform: [{ rotate: '360deg' }],
+  rotating: {
+    transform: [{ rotate: '45deg' }],
   },
   infoGrid: {
     flexDirection: 'row',
@@ -757,6 +873,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginHorizontal: 2,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   tabletInfoItem: {
     padding: 16,
@@ -770,7 +888,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 11,
     fontFamily: 'Inter-Medium',
-    color: '#6b7280',
+    color: '#64748b',
     marginBottom: 2,
   },
   tabletInfoLabel: {
@@ -780,7 +898,7 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#374151',
+    color: '#0f172a',
   },
   tabletInfoValue: {
     fontSize: 16,
@@ -790,6 +908,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   tabletStatsContainer: {
     padding: 20,
@@ -834,128 +954,10 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 10,
     fontFamily: 'Inter-Medium',
-    color: '#6b7280',
+    color: '#64748b',
     textAlign: 'center',
   },
   tabletStatLabel: {
     fontSize: 12,
-  },
-  eventsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  eventsTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-Bold',
-    color: '#374151',
-  },
-  tabletEventsTitle: {
-    fontSize: 18,
-  },
-  updateIndicator: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#22c55e',
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  tabletUpdateIndicator: {
-    fontSize: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  eventsContainer: {
-    maxHeight: 300,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-  },
-  tabletEventsContainer: {
-    maxHeight: 400,
-    borderRadius: 12,
-  },
-  eventsContent: {
-    padding: 12,
-  },
-  eventItem: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  tabletEventItem: {
-    paddingVertical: 10,
-  },
-  eventIndex: {
-    fontSize: 11,
-    fontFamily: 'Inter-Medium',
-    color: '#6b7280',
-    width: 24,
-    marginRight: 8,
-  },
-  tabletEventIndex: {
-    fontSize: 13,
-    width: 28,
-    marginRight: 12,
-  },
-  eventText: {
-    fontSize: 11,
-    fontFamily: 'Inter-Regular',
-    color: '#374151',
-    flex: 1,
-    lineHeight: 16,
-  },
-  tabletEventText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  controlEvent: {
-    color: '#1e40af',
-    fontFamily: 'Inter-Medium',
-  },
-  emergencyEvent: {
-    color: '#dc2626',
-    fontFamily: 'Inter-Bold',
-  },
-  arduinoEvent: {
-    color: '#8b5cf6',
-    fontFamily: 'Inter-Medium',
-  },
-  safetyEvent: {
-    color: '#06b6d4',
-    fontFamily: 'Inter-Medium',
-  },
-  sessionEvent: {
-    color: '#22c55e',
-    fontFamily: 'Inter-Bold',
-  },
-  noEventsContainer: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  noEventsText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#6b7280',
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  tabletNoEventsText: {
-    fontSize: 16,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  noEventsSubtext: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#9ca3af',
-    textAlign: 'center',
-  },
-  tabletNoEventsSubtext: {
-    fontSize: 14,
   },
 });
