@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions, PanResponder, Platform } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, PanResponder } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -8,7 +8,6 @@ import Animated, {
   withTiming,
   interpolate,
   interpolateColor,
-  runOnJS,
 } from 'react-native-reanimated';
 import { Gauge, Zap } from 'lucide-react-native';
 import { useOptimizedTouch } from '@/hooks/useOptimizedTouch';
@@ -61,7 +60,7 @@ export function PremiumSpeedSlider({
   }, [onValueChange, min, max, step]);
 
   // Create PanResponder for handling touch gestures
-  const panResponder = useMemo(() => PanResponder.create({
+  const panResponder = React.useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !disabled,
     onMoveShouldSetPanResponder: () => !disabled,
     
@@ -71,9 +70,7 @@ export function PremiumSpeedSlider({
       thumbScale.value = withSpring(1.2, { damping: 15, stiffness: 300 });
       glowOpacity.value = withTiming(1, { duration: 200 });
       
-      if (Platform.OS !== 'web') {
-        triggerHaptic('light');
-      }
+      triggerHaptic('light');
     },
     
     onPanResponderMove: (_, gestureState) => {
@@ -91,9 +88,7 @@ export function PremiumSpeedSlider({
         setLocalValue(steppedValue);
         onValueChange(steppedValue);
         
-        if (Platform.OS !== 'web') {
-          triggerHaptic('light');
-        }
+        triggerHaptic('light');
       }
     },
     
@@ -107,11 +102,9 @@ export function PremiumSpeedSlider({
       const finalPosition = ((localValue - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
       translateX.value = withSpring(finalPosition, { damping: 15, stiffness: 150 });
       
-      if (Platform.OS !== 'web') {
-        triggerHaptic('medium');
-      }
+      triggerHaptic('medium');
     },
-  }), [disabled, min, max, step, localValue, onValueChange, triggerHaptic]);
+  }), [disabled, min, max, step, localValue, onValueChange, triggerHaptic, isPressed, thumbScale, glowOpacity, translateX]);
 
   // Animated styles
   const trackStyle = useAnimatedStyle(() => {

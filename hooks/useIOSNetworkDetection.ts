@@ -146,7 +146,7 @@ export function useIOSNetworkDetection(config: Partial<IOSConnectionConfig> = {}
         method: 'GET',
         signal: controller.signal,
         headers: {
-          'Accept': 'application/json',
+          'Accept': 'application/json, text/plain, */*',
           'User-Agent': 'AEROSPIN-iOS/1.0.0',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',

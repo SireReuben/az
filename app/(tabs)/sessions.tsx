@@ -41,7 +41,8 @@ export default function SessionsScreen() {
     endSession,
     refreshConnection,
     networkDetection,
-    registerForceUpdateCallback
+    registerForceUpdateCallback,
+    generateAndSharePdf
   } = useDeviceState();
   
   const { addSessionAlert } = useAlerts();
@@ -81,6 +82,8 @@ export default function SessionsScreen() {
     await endSession();
     showFeedback('info');
     addSessionAlert('info', 'Session Ended', 'Device control session terminated and data saved');
+    
+    // PDF is automatically generated and shared in endSession
   }, { haptic: 'light' });
 
   const handleRefreshConnection = async () => {
