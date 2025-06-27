@@ -1,15 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  interpolate,
-  interpolateColor,
-} from 'react-native-reanimated';
-import { Gauge, Zap } from 'lucide-react-native';
+import { Gauge, Zap, Minus, Plus } from 'lucide-react-native';
 import { useOptimizedTouch } from '@/hooks/useOptimizedTouch';
 
 interface PremiumSpeedSliderProps {
@@ -34,120 +26,58 @@ export function PremiumSpeedSlider({
   step = 5,
 }: PremiumSpeedSliderProps) {
   const { triggerHaptic } = useOptimizedTouch();
-  
-  // Animation values
-  const translateX = useSharedValue(0);
-  const thumbScale = useSharedValue(1);
-  const glowOpacity = useSharedValue(0);
-  const isPressed = useSharedValue(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [localValue, setLocalValue] = useState(value);
-
+  const [thumbPosition, setThumbPosition] = useState(0);
+  
   // Initialize position based on value
   useEffect(() => {
-    if (!isDragging) {
-      const position = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
-      translateX.value = withSpring(position, { damping: 15, stiffness: 150 });
-      setLocalValue(value);
-    }
-  }, [value, min, max, translateX, isDragging]);
+    const position = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
+    setThumbPosition(position);
+    setLocalValue(value);
+  }, [value, min, max]);
 
-  const updateValue = useCallback((newValue: number) => {
-    const clampedValue = Math.max(min, Math.min(max, newValue));
-    const steppedValue = Math.round(clampedValue / step) * step;
+  // Handle slider touch
+  const handleSliderTouch = useCallback((event: any) => {
+    if (disabled) return;
+    
+    const { locationX } = event.nativeEvent;
+    const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, locationX - THUMB_SIZE / 2));
+    setThumbPosition(newPosition);
+    
+    // Calculate new value
+    const percentage = newPosition / (SLIDER_WIDTH - THUMB_SIZE);
+    const newValue = min + percentage * (max - min);
+    const steppedValue = Math.round(newValue / step) * step;
+    
     setLocalValue(steppedValue);
     onValueChange(steppedValue);
-  }, [onValueChange, min, max, step]);
+    triggerHaptic('light');
+  }, [disabled, min, max, step, onValueChange, triggerHaptic]);
 
-  // Create PanResponder for handling touch gestures
-  const panResponder = React.useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => !disabled,
-    onMoveShouldSetPanResponder: () => !disabled,
+  // Increment/decrement value
+  const adjustValue = useCallback((increment: boolean) => {
+    if (disabled) return;
     
-    onPanResponderGrant: () => {
-      setIsDragging(true);
-      isPressed.value = true;
-      thumbScale.value = withSpring(1.2, { damping: 15, stiffness: 300 });
-      glowOpacity.value = withTiming(1, { duration: 200 });
-      
-      triggerHaptic('light');
-    },
+    const delta = increment ? step : -step;
+    const newValue = Math.max(min, Math.min(max, localValue + delta));
     
-    onPanResponderMove: (_, gestureState) => {
-      // Calculate new position based on drag
-      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, gestureState.moveX - 40));
-      translateX.value = newPosition;
-      
-      // Calculate new value based on position
-      const percentage = newPosition / (SLIDER_WIDTH - THUMB_SIZE);
-      const newValue = min + percentage * (max - min);
-      const steppedValue = Math.round(newValue / step) * step;
-      
-      // Update value if changed
-      if (steppedValue !== localValue) {
-        setLocalValue(steppedValue);
-        onValueChange(steppedValue);
-        
-        triggerHaptic('light');
-      }
-    },
+    setLocalValue(newValue);
+    onValueChange(newValue);
     
-    onPanResponderRelease: () => {
-      setIsDragging(false);
-      isPressed.value = false;
-      thumbScale.value = withSpring(1, { damping: 15, stiffness: 300 });
-      glowOpacity.value = withTiming(0, { duration: 300 });
-      
-      // Snap to final position
-      const finalPosition = ((localValue - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
-      translateX.value = withSpring(finalPosition, { damping: 15, stiffness: 150 });
-      
-      triggerHaptic('medium');
-    },
-  }), [disabled, min, max, step, localValue, onValueChange, triggerHaptic, isPressed, thumbScale, glowOpacity, translateX]);
+    // Update thumb position
+    const newPosition = ((newValue - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
+    setThumbPosition(newPosition);
+    
+    triggerHaptic('light');
+  }, [disabled, localValue, min, max, step, onValueChange, triggerHaptic]);
 
-  // Animated styles
-  const trackStyle = useAnimatedStyle(() => {
-    const progress = translateX.value / (SLIDER_WIDTH - THUMB_SIZE);
-    return {
-      backgroundColor: interpolateColor(
-        progress,
-        [0, 0.5, 1],
-        ['#64748b', '#3b82f6', '#ef4444']
-      ),
-    };
-  });
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { scale: thumbScale.value },
-    ],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    transform: [
-      { translateX: translateX.value },
-      { scale: thumbScale.value },
-    ],
-  }));
-
-  const progressStyle = useAnimatedStyle(() => ({
-    width: translateX.value + THUMB_SIZE / 2,
-  }));
-
-  const speedTextStyle = useAnimatedStyle(() => {
-    const progress = translateX.value / (SLIDER_WIDTH - THUMB_SIZE);
-    return {
-      color: interpolateColor(
-        progress,
-        [0, 0.5, 1],
-        ['#64748b', '#3b82f6', '#ef4444']
-      ),
-      transform: [{ scale: isPressed.value ? withSpring(1.1) : withSpring(1) }],
-    };
-  });
+  // Get color based on value
+  const getValueColor = () => {
+    const percentage = (localValue - min) / (max - min);
+    if (percentage < 0.3) return '#64748b';
+    if (percentage < 0.7) return '#3b82f6';
+    return '#ef4444';
+  };
 
   return (
     <View style={[styles.container, disabled && styles.disabled]}>
@@ -157,9 +87,9 @@ export function PremiumSpeedSlider({
           <Gauge size={20} color="#1e40af" />
           <Text style={styles.title}>Motor Speed Control</Text>
         </View>
-        <Animated.Text style={[styles.speedValue, speedTextStyle]}>
+        <Text style={[styles.speedValue, { color: getValueColor() }]}>
           {localValue}%
-        </Animated.Text>
+        </Text>
       </View>
 
       {/* Speed Indicators */}
@@ -179,14 +109,24 @@ export function PremiumSpeedSlider({
       </View>
 
       {/* Slider Container */}
-      <View style={styles.sliderContainer} {...panResponder.panHandlers}>
+      <View style={styles.sliderContainer}>
         {/* Track Background */}
         <View style={styles.trackBackground}>
           {/* Progress Track */}
-          <Animated.View style={[styles.progressTrack, progressStyle]} />
+          <View 
+            style={[
+              styles.progressTrack, 
+              { width: thumbPosition + THUMB_SIZE / 2 }
+            ]} 
+          />
           
           {/* Track Overlay */}
-          <Animated.View style={[styles.trackOverlay, trackStyle]} />
+          <LinearGradient
+            colors={['#64748b', '#3b82f6', '#ef4444']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.trackOverlay}
+          />
         </View>
 
         {/* Tick Marks */}
@@ -202,18 +142,73 @@ export function PremiumSpeedSlider({
           ))}
         </View>
 
-        {/* Thumb Glow */}
-        <Animated.View style={[styles.thumbGlow, glowStyle]} />
-        
-        {/* Thumb */}
-        <Animated.View style={[styles.thumb, thumbStyle]}>
-          <LinearGradient
-            colors={['#3b82f6', '#1d4ed8']}
-            style={styles.thumbInner}
+        {/* Interactive Area */}
+        <View 
+          style={styles.touchArea}
+          onStartShouldSetResponder={() => !disabled}
+          onResponderGrant={(e) => {
+            handleSliderTouch(e);
+            triggerHaptic('medium');
+          }}
+          onResponderMove={handleSliderTouch}
+          onResponderRelease={() => triggerHaptic('medium')}
+        >
+          {/* Thumb */}
+          <View 
+            style={[
+              styles.thumb,
+              { left: thumbPosition }
+            ]}
           >
-            <View style={styles.thumbGrip} />
+            <LinearGradient
+              colors={['#3b82f6', '#1d4ed8']}
+              style={styles.thumbInner}
+            >
+              <View style={styles.thumbGrip} />
+            </LinearGradient>
+          </View>
+        </View>
+      </View>
+
+      {/* Speed Controls */}
+      <View style={styles.speedControls}>
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => adjustValue(false)}
+          disabled={disabled || localValue <= min}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#64748b', '#475569']}
+            style={[
+              styles.controlButtonGradient,
+              (disabled || localValue <= min) && styles.disabledButton
+            ]}
+          >
+            <Minus size={20} color="#ffffff" />
           </LinearGradient>
-        </Animated.View>
+        </TouchableOpacity>
+        
+        <View style={styles.speedDisplay}>
+          <Text style={styles.speedDisplayText}>{localValue}%</Text>
+        </View>
+        
+        <TouchableOpacity
+          style={styles.controlButton}
+          onPress={() => adjustValue(true)}
+          disabled={disabled || localValue >= max}
+          activeOpacity={0.7}
+        >
+          <LinearGradient
+            colors={['#64748b', '#475569']}
+            style={[
+              styles.controlButtonGradient,
+              (disabled || localValue >= max) && styles.disabledButton
+            ]}
+          >
+            <Plus size={20} color="#ffffff" />
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
       {/* Speed Zones */}
@@ -316,6 +311,7 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: 'rgba(59, 130, 246, 0.6)',
     borderRadius: 4,
+    zIndex: 1,
   },
   trackOverlay: {
     position: 'absolute',
@@ -340,16 +336,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(148, 163, 184, 0.6)',
     borderRadius: 1,
   },
-  thumbGlow: {
+  touchArea: {
     position: 'absolute',
-    top: (SLIDER_HEIGHT - THUMB_SIZE) / 2,
-    width: THUMB_SIZE + 20,
-    height: THUMB_SIZE + 20,
-    marginLeft: -10,
-    marginTop: -10,
-    borderRadius: (THUMB_SIZE + 20) / 2,
-    backgroundColor: '#3b82f6',
-    opacity: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: SLIDER_HEIGHT,
   },
   thumb: {
     position: 'absolute',
@@ -377,6 +369,42 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#ffffff',
     opacity: 0.8,
+  },
+  speedControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  controlButton: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  controlButtonGradient: {
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  speedDisplay: {
+    backgroundColor: '#f8fafc',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  speedDisplayText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
   },
   speedZones: {
     flexDirection: 'row',
