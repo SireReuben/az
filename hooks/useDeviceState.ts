@@ -53,18 +53,48 @@ export function useDeviceState() {
     responseTime: 0,
     sendCommand: async (endpoint: string, timeout?: number) => {
       try {
+        console.log(`[iOS] Sending command to: http://192.168.4.1${endpoint}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+          console.log(`[iOS] Command timeout: ${endpoint}`);
+        }, timeout || 8000);
+        
         const response = await fetch(`http://192.168.4.1${endpoint}`, {
           method: 'GET',
+          signal: controller.signal,
           headers: {
-            'Accept': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
             'User-Agent': 'AEROSPIN-iOS/1.0.0',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Connection': 'close',
           },
+          cache: 'no-store',
         });
         
-        const data = response.ok ? await response.json() : null;
+        clearTimeout(timeoutId);
+        
+        let data = null;
+        if (response.ok) {
+          try {
+            const responseText = await response.text();
+            data = responseText ? JSON.parse(responseText) : null;
+            console.log(`[iOS] Command successful: ${endpoint}`, data);
+          } catch (parseError) {
+            console.log(`[iOS] Response parsing failed for ${endpoint}:`, parseError);
+            data = null;
+          }
+        } else {
+          console.log(`[iOS] Command failed: ${endpoint}, status: ${response.status}`);
+        }
+        
         return { ok: response.ok, data, status: response.status };
       } catch (error) {
-        throw error;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`[iOS] Command error: ${endpoint}`, errorMessage);
+        throw new Error(`iOS command failed: ${errorMessage}`);
       }
     },
     testConnection: iosConnection.refreshConnection,
@@ -87,6 +117,7 @@ export function useDeviceState() {
     connectionQuality: iosConnection.connectionQuality,
     networkInfo: iosConnection.networkInfo,
     detectionStatus: iosConnection.detectionStatus,
+    lastError: iosConnection.lastError,
   } : {
     isConnectedToArduinoWifi: true,
     isArduinoReachable: connectionStatus === 'connected',
@@ -99,6 +130,7 @@ export function useDeviceState() {
       isInternetReachable: false,
     },
     detectionStatus: connectionStatus,
+    lastError: null,
   };
 
   // Real-time duration calculation
@@ -294,12 +326,13 @@ export function useDeviceState() {
                 });
               }
             })
-            .catch(() => {
+            .catch((error) => {
               if (deviceState.sessionActive) {
-                addSessionEvent(`❌ Arduino command failed: Direction ${updates.direction}`, {
+                addSessionEvent(`❌ Arduino command failed: Direction ${updates.direction} - ${error.message}`, {
                   type: 'arduino_error',
                   command: 'direction',
                   value: updates.direction,
+                  error: error.message,
                   majorStateChange: true
                 });
               }
@@ -323,13 +356,14 @@ export function useDeviceState() {
                 });
               }
             })
-            .catch(() => {
+            .catch((error) => {
               if (deviceState.sessionActive) {
-                addSessionEvent(`❌ Arduino command failed: Brake ${action} ${state}`, {
+                addSessionEvent(`❌ Arduino command failed: Brake ${action} ${state} - ${error.message}`, {
                   type: 'arduino_error',
                   command: 'brake',
                   action: action,
                   state: state,
+                  error: error.message,
                   majorStateChange: true
                 });
               }
@@ -350,12 +384,13 @@ export function useDeviceState() {
                 });
               }
             })
-            .catch(() => {
+            .catch((error) => {
               if (deviceState.sessionActive) {
-                addSessionEvent(`❌ Arduino command failed: Speed ${updates.speed}%`, {
+                addSessionEvent(`❌ Arduino command failed: Speed ${updates.speed}% - ${error.message}`, {
                   type: 'arduino_error',
                   command: 'speed',
                   value: updates.speed,
+                  error: error.message,
                   majorStateChange: true
                 });
               }
@@ -367,11 +402,12 @@ export function useDeviceState() {
       await Promise.allSettled(commandPromises);
       
     } catch (error) {
-      console.log('Device update failed, continuing in offline mode:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.log('Device update failed, continuing in offline mode:', errorMessage);
       if (deviceState.sessionActive) {
-        addSessionEvent('❌ Device communication lost - operating offline', { 
+        addSessionEvent(`❌ Device communication lost - operating offline: ${errorMessage}`, { 
           type: 'system_error',
-          error: error.message,
+          error: errorMessage,
           majorStateChange: true
         });
       }
@@ -382,15 +418,29 @@ export function useDeviceState() {
     if (!isConnected) return;
 
     try {
+      console.log('Fetching device status...');
       const result = await sendCommand('/status', 5000);
       
       if (result.ok && result.data) {
         parseDeviceStatus(result.data);
+        console.log('Device status fetched successfully');
+      } else {
+        console.log('Failed to fetch device status: Invalid response');
       }
     } catch (error) {
-      console.log('Failed to fetch device status:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.log('Failed to fetch device status:', errorMessage);
+      
+      // Add session event for status fetch failure
+      if (deviceState.sessionActive) {
+        addSessionEvent(`⚠️ Status fetch failed: ${errorMessage}`, {
+          type: 'system_error',
+          error: errorMessage,
+          operation: 'status_fetch'
+        });
+      }
     }
-  }, [isConnected, sendCommand]);
+  }, [isConnected, sendCommand, deviceState.sessionActive, addSessionEvent]);
 
   const parseDeviceStatus = useCallback((statusData: any) => {
     try {
@@ -434,6 +484,11 @@ export function useDeviceState() {
       `🆔 Session ID: SES_${Date.now()}`,
       `⚡ System initialized and ready for operations`
     ];
+
+    // Add network error info for iOS if available
+    if (Platform.OS === 'ios' && networkDetection.lastError) {
+      initialEvents.push(`⚠️ Network Status: ${networkDetection.lastError}`);
+    }
 
     const initialUpdateTrigger = Date.now();
     setSessionData({
@@ -496,15 +551,16 @@ export function useDeviceState() {
         }, 200);
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setTimeout(() => {
-        addSessionEvent('⚠️ Device connection lost - continuing offline', { 
+        addSessionEvent(`⚠️ Device connection lost - continuing offline: ${errorMessage}`, { 
           type: 'system_error',
-          error: error.message,
+          error: errorMessage,
           majorStateChange: true
         });
       }, 200);
     }
-  }, [isConnected, sendCommand, addSessionEvent, fetchDeviceStatus, calculateDuration, triggerImmediateUpdate]);
+  }, [isConnected, sendCommand, addSessionEvent, fetchDeviceStatus, calculateDuration, triggerImmediateUpdate, networkDetection.lastError]);
 
   const endSession = useCallback(async () => {
     if (!deviceState.sessionActive) return;
@@ -555,9 +611,11 @@ export function useDeviceState() {
           });
         }
       } catch (error) {
-        addSessionEvent('💾 Session ended offline - data saved locally only', {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        addSessionEvent(`💾 Session ended offline - data saved locally only: ${errorMessage}`, {
           type: 'system_event',
           offline_save: true,
+          error: errorMessage,
           majorStateChange: true
         });
       }
@@ -687,10 +745,12 @@ export function useDeviceState() {
           });
         }
       } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         if (deviceState.sessionActive) {
-          addSessionEvent(`⚠️ Emergency stop - device communication failed, local stop applied`, {
+          addSessionEvent(`⚠️ Emergency stop - device communication failed, local stop applied: ${errorMessage}`, {
             type: 'emergency_event',
             offline_emergency: true,
+            error: errorMessage,
             majorStateChange: true
           });
           addSessionEvent(`🔒 Offline emergency protocol: Local controls stopped`, {
@@ -771,7 +831,7 @@ export function useDeviceState() {
     };
   }, []);
 
-  // Periodic status fetching
+  // Periodic status fetching with enhanced error handling
   useEffect(() => {
     let statusInterval: NodeJS.Timeout;
     let isComponentMounted = true;
@@ -782,14 +842,14 @@ export function useDeviceState() {
         if (isComponentMounted) {
           fetchDeviceStatus();
         }
-      }, 10000); // Every 10 seconds
+      }, 15000); // Every 15 seconds (increased from 10 to reduce network load)
       
       // Initial fetch after a short delay
       setTimeout(() => {
         if (isComponentMounted) {
           fetchDeviceStatus();
         }
-      }, 2000);
+      }, 3000); // Increased delay to allow connection to stabilize
     }
 
     return () => {
@@ -801,7 +861,7 @@ export function useDeviceState() {
   // Initial status fetch when connection is established
   useEffect(() => {
     if (isConnected && connectionStatus === 'connected') {
-      setTimeout(() => fetchDeviceStatus(), 500);
+      setTimeout(() => fetchDeviceStatus(), 1000); // Increased delay for iOS
     }
   }, [isConnected, connectionStatus, fetchDeviceStatus]);
 

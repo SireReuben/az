@@ -24,18 +24,23 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location to detect and connect to AEROSPIN device Wi-Fi network.",
         "NSLocalNetworkUsageDescription": "This app needs access to local network to communicate with AEROSPIN device.",
         "NSBonjourServices": [
-          "_http._tcp"
+          "_http._tcp",
+          "_https._tcp"
         ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true,
           "NSExceptionDomains": {
             "192.168.4.1": {
               "NSExceptionAllowsInsecureHTTPLoads": true,
               "NSExceptionMinimumTLSVersion": "1.0",
-              "NSIncludesSubdomains": false
+              "NSIncludesSubdomains": true,
+              "NSExceptionRequiresForwardSecrecy": false,
+              "NSExceptionAllowsInsecureHTTPLoads": true
             },
             "localhost": {
-              "NSExceptionAllowsInsecureHTTPLoads": true
+              "NSExceptionAllowsInsecureHTTPLoads": true,
+              "NSExceptionRequiresForwardSecrecy": false
             }
           }
         }
@@ -76,6 +81,9 @@
       [
         "expo-build-properties",
         {
+          "ios": {
+            "useFramework": "static"
+          },
           "android": {
             "usesCleartextTraffic": true,
             "networkSecurityConfig": {
