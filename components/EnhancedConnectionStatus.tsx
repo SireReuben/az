@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Wifi, WifiOff, Circle, RefreshCw, CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
+import { Wifi, WifiOff, Circle, RefreshCw, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import Animated, { 
   useSharedValue, 
