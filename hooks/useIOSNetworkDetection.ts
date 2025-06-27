@@ -32,7 +32,7 @@ const IOS_CONFIG: IOSConnectionConfig = {
   arduinoIP: '192.168.4.1',
   arduinoPort: 80,
   expectedSSID: 'AEROSPIN CONTROL',
-  connectionTimeout: 8000, // Reduced timeout for faster detection
+  connectionTimeout: 90000, // Increased to 90 seconds to match Arduino timeout
   retryAttempts: 3,
   retryDelay: 1500, // Reduced delay between retries
 };

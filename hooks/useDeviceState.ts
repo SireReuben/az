@@ -59,7 +59,7 @@ export function useDeviceState() {
         const timeoutId = setTimeout(() => {
           controller.abort();
           console.log(`[iOS] Command timeout: ${endpoint}`);
-        }, timeout || 8000);
+        }, timeout || 90000); // Increased default timeout to 90 seconds
         
         const response = await fetch(`http://192.168.4.1${endpoint}`, {
           method: 'GET',
@@ -315,7 +315,7 @@ export function useDeviceState() {
       
       if (updates.direction !== undefined) {
         commandPromises.push(
-          sendCommand(`/direction?state=${updates.direction.toLowerCase()}`)
+          sendCommand(`/direction?state=${updates.direction.toLowerCase()}`, 90000) // Use 90 second timeout
             .then(() => {
               if (deviceState.sessionActive) {
                 addSessionEvent(`✅ Arduino command sent: Direction set to ${updates.direction}`, {
@@ -344,7 +344,7 @@ export function useDeviceState() {
         const action = updates.brake.toLowerCase();
         const state = updates.brake === 'None' ? 'off' : 'on';
         commandPromises.push(
-          sendCommand(`/brake?action=${action}&state=${state}`)
+          sendCommand(`/brake?action=${action}&state=${state}`, 90000) // Use 90 second timeout
             .then(() => {
               if (deviceState.sessionActive) {
                 addSessionEvent(`✅ Arduino command sent: Brake ${action} ${state}`, {
@@ -373,7 +373,7 @@ export function useDeviceState() {
       
       if (updates.speed !== undefined) {
         commandPromises.push(
-          sendCommand(`/speed?value=${updates.speed}`)
+          sendCommand(`/speed?value=${updates.speed}`, 90000) // Use 90 second timeout
             .then(() => {
               if (deviceState.sessionActive) {
                 addSessionEvent(`✅ Arduino command sent: Speed set to ${updates.speed}%`, {
@@ -419,7 +419,7 @@ export function useDeviceState() {
 
     try {
       console.log('Fetching device status...');
-      const result = await sendCommand('/status', 5000);
+      const result = await sendCommand('/status', 90000); // Use 90 second timeout
       
       if (result.ok && result.data) {
         parseDeviceStatus(result.data);
@@ -538,7 +538,7 @@ export function useDeviceState() {
     }
 
     try {
-      const result = await sendCommand('/startSession');
+      const result = await sendCommand('/startSession', 90000); // Use 90 second timeout
       if (result.ok) {
         setTimeout(() => {
           addSessionEvent('✅ Connected to Arduino device successfully', {
@@ -602,7 +602,7 @@ export function useDeviceState() {
 
     if (isConnected) {
       try {
-        const result = await sendCommand('/endSession');
+        const result = await sendCommand('/endSession', 90000); // Use 90 second timeout
         if (result.ok) {
           addSessionEvent('💾 Session data saved to Arduino device', {
             type: 'system_event',
@@ -672,7 +672,7 @@ export function useDeviceState() {
 
     if (isConnected) {
       try {
-        await sendCommand('/reset', 10000);
+        await sendCommand('/reset', 90000); // Use 90 second timeout
         console.log(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
       } catch (error) {
         console.log(`Reset command sent - device restarting. Brake position preserved: ${currentBrake}`);
@@ -728,8 +728,8 @@ export function useDeviceState() {
     if (isConnected) {
       try {
         await Promise.all([
-          sendCommand('/speed?value=0', 3000),
-          sendCommand('/direction?state=none', 3000)
+          sendCommand('/speed?value=0', 90000), // Use 90 second timeout
+          sendCommand('/direction?state=none', 90000) // Use 90 second timeout
         ]);
         
         if (deviceState.sessionActive) {
