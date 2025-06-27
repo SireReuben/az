@@ -47,58 +47,85 @@ export function useDeviceState() {
   const androidConnection = useAndroidArduinoConnection();
   const iosConnection = useIOSNetworkDetection();
 
+  // Enhanced iOS sendCommand with retry mechanism
+  const createIOSSendCommand = useCallback(() => {
+    return async (endpoint: string, timeout?: number) => {
+      const maxRetries = 3;
+      const retryDelay = 500; // 500ms delay between retries
+      let lastError: Error | null = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`[iOS] Sending command to: http://192.168.4.1${endpoint} (attempt ${attempt}/${maxRetries})`);
+          
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => {
+            controller.abort();
+            console.log(`[iOS] Command timeout: ${endpoint} (attempt ${attempt})`);
+          }, timeout || 90000);
+          
+          const response = await fetch(`http://192.168.4.1${endpoint}`, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {
+              'Accept': 'application/json, text/plain, */*',
+              'User-Agent': 'AEROSPIN-iOS/1.0.0',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Connection': 'close',
+            },
+            cache: 'no-store',
+          });
+          
+          clearTimeout(timeoutId);
+          
+          let data = null;
+          if (response.ok) {
+            try {
+              const responseText = await response.text();
+              data = responseText ? JSON.parse(responseText) : null;
+              console.log(`[iOS] Command successful: ${endpoint}`, data);
+            } catch (parseError) {
+              console.log(`[iOS] Response parsing failed for ${endpoint}:`, parseError);
+              data = null;
+            }
+          } else {
+            console.log(`[iOS] Command failed: ${endpoint}, status: ${response.status} (attempt ${attempt})`);
+          }
+          
+          return { ok: response.ok, data, status: response.status };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          lastError = error instanceof Error ? error : new Error(errorMessage);
+          
+          console.log(`[iOS] Command error: ${endpoint} (attempt ${attempt}/${maxRetries})`, errorMessage);
+          
+          // Check if this is a network request failed error that we should retry
+          if (errorMessage.includes('Network request failed') && attempt < maxRetries) {
+            console.log(`[iOS] Retrying command ${endpoint} in ${retryDelay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+            continue; // Retry the request
+          }
+          
+          // If it's the last attempt or a non-retryable error, throw
+          if (attempt === maxRetries) {
+            throw new Error(`iOS command failed after ${maxRetries} attempts: ${errorMessage}`);
+          }
+        }
+      }
+      
+      // This should never be reached, but just in case
+      throw lastError || new Error('Unknown error occurred during retry attempts');
+    };
+  }, []);
+
   // Select the appropriate connection based on platform
   const connection = Platform.OS === 'ios' ? {
     isConnected: iosConnection.isFullyConnected,
     connectionStatus: iosConnection.detectionStatus,
     lastResponse: null,
     responseTime: 0,
-    sendCommand: async (endpoint: string, timeout?: number) => {
-      try {
-        console.log(`[iOS] Sending command to: http://192.168.4.1${endpoint}`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-          console.log(`[iOS] Command timeout: ${endpoint}`);
-        }, timeout || 90000); // Increased default timeout to 90 seconds
-        
-        const response = await fetch(`http://192.168.4.1${endpoint}`, {
-          method: 'GET',
-          signal: controller.signal,
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'AEROSPIN-iOS/1.0.0',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Connection': 'close',
-          },
-          cache: 'no-store',
-        });
-        
-        clearTimeout(timeoutId);
-        
-        let data = null;
-        if (response.ok) {
-          try {
-            const responseText = await response.text();
-            data = responseText ? JSON.parse(responseText) : null;
-            console.log(`[iOS] Command successful: ${endpoint}`, data);
-          } catch (parseError) {
-            console.log(`[iOS] Response parsing failed for ${endpoint}:`, parseError);
-            data = null;
-          }
-        } else {
-          console.log(`[iOS] Command failed: ${endpoint}, status: ${response.status}`);
-        }
-        
-        return { ok: response.ok, data, status: response.status };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.log(`[iOS] Command error: ${endpoint}`, errorMessage);
-        throw new Error(`iOS command failed: ${errorMessage}`);
-      }
-    },
+    sendCommand: createIOSSendCommand(),
     testConnection: iosConnection.refreshConnection,
   } : androidConnection;
 
