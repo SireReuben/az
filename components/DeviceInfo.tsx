@@ -36,15 +36,17 @@ export function DeviceInfo() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   title: {
     fontSize: 18,
@@ -57,7 +59,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e2e8f0',
   },
   infoContent: {
     flex: 1,
@@ -68,11 +70,11 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#374151',
+    color: '#0f172a',
   },
   infoValue: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6b7280',
+    color: '#475569',
   },
 });

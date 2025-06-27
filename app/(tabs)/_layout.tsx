@@ -31,8 +31,8 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0f172a',
-          borderTopColor: '#1e293b',
+          backgroundColor: '#ffffff',
+          borderTopColor: '#e2e8f0',
           borderTopWidth: 1,
           height: getTabBarHeight(),
           paddingBottom: padding.bottom,
@@ -40,7 +40,7 @@ export default function TabLayout() {
           paddingHorizontal: padding.horizontal,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.3,
+          shadowOpacity: 0.1,
           shadowRadius: 12,
           elevation: 20,
           // Ensure tab bar fills width on landscape tablets
@@ -55,8 +55,8 @@ export default function TabLayout() {
             maxWidth: width,
           }),
         },
-        tabBarActiveTintColor: '#60a5fa',
-        tabBarInactiveTintColor: '#475569',
+        tabBarActiveTintColor: '#1e40af',
+        tabBarInactiveTintColor: '#64748b',
         tabBarLabelStyle: {
           fontSize: isTablet ? (isLandscape ? 12 : 14) : 12,
           fontFamily: 'Inter-Medium',

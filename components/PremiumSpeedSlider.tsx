@@ -41,18 +41,21 @@ export function PremiumSpeedSlider({
   const glowOpacity = useSharedValue(0);
   const isPressed = useSharedValue(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
 
   // Initialize position based on value
   useEffect(() => {
     if (!isDragging) {
       const position = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
       translateX.value = withSpring(position, { damping: 15, stiffness: 150 });
+      setLocalValue(value);
     }
   }, [value, min, max, translateX, isDragging]);
 
   const updateValue = useCallback((newValue: number) => {
     const clampedValue = Math.max(min, Math.min(max, newValue));
     const steppedValue = Math.round(clampedValue / step) * step;
+    setLocalValue(steppedValue);
     onValueChange(steppedValue);
   }, [onValueChange, min, max, step]);
 
@@ -72,7 +75,7 @@ export function PremiumSpeedSlider({
     },
     
     onPanResponderMove: (_, gestureState) => {
-      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, gestureState.dx + translateX.value));
+      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, translateX.value + gestureState.dx));
       translateX.value = newPosition;
       
       // Calculate new value
@@ -81,11 +84,12 @@ export function PremiumSpeedSlider({
       const steppedValue = Math.round(newValue / step) * step;
       
       // Trigger haptic feedback on value change
-      if (Math.abs(steppedValue - value) >= step && Platform.OS !== 'web') {
+      if (Math.abs(steppedValue - localValue) >= step && Platform.OS !== 'web') {
         runOnJS(triggerHaptic)('light');
       }
       
-      runOnJS(updateValue)(steppedValue);
+      runOnJS(setLocalValue)(steppedValue);
+      runOnJS(onValueChange)(steppedValue);
     },
     
     onPanResponderRelease: () => {
@@ -95,7 +99,7 @@ export function PremiumSpeedSlider({
       glowOpacity.value = withTiming(0, { duration: 300 });
       
       // Snap to final position
-      const finalPosition = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
+      const finalPosition = ((localValue - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
       translateX.value = withSpring(finalPosition, { damping: 15, stiffness: 150 });
       
       if (Platform.OS !== 'web') {
@@ -156,7 +160,7 @@ export function PremiumSpeedSlider({
           <Text style={styles.title}>Motor Speed Control</Text>
         </View>
         <Animated.Text style={[styles.speedValue, speedTextStyle]}>
-          {value}%
+          {localValue}%
         </Animated.Text>
       </View>
 
@@ -238,7 +242,7 @@ export function PremiumSpeedSlider({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 20,
     padding: 24,
     marginVertical: 16,
@@ -267,12 +271,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
   },
   speedValue: {
     fontSize: 32,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#3b82f6',
   },
   indicators: {
     flexDirection: 'row',
@@ -287,13 +291,13 @@ const styles = StyleSheet.create({
   indicatorLabel: {
     fontSize: 10,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: '#64748b',
     letterSpacing: 1,
   },
   indicatorValue: {
     fontSize: 12,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#334155',
   },
   sliderContainer: {
     height: SLIDER_HEIGHT,
@@ -306,7 +310,7 @@ const styles = StyleSheet.create({
     left: THUMB_SIZE / 2,
     right: THUMB_SIZE / 2,
     height: 8,
-    backgroundColor: 'rgba(71, 85, 105, 0.5)',
+    backgroundColor: 'rgba(203, 213, 225, 0.5)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -398,30 +402,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lowZone: {
-    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   mediumZone: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(245, 158, 11, 0.3)',
   },
   highZone: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   zoneLabel: {
     fontSize: 10,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#334155',
     letterSpacing: 0.5,
   },
   zoneRange: {
     fontSize: 8,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 2,
   },
 });

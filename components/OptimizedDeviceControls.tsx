@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Pressable, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -37,7 +38,9 @@ const OptimizedControl = memo(({
 
   const handlePressIn = useCallback(() => {
     scale.value = withSpring(0.95, { damping: 15, stiffness: 300 });
-    runOnJS(triggerHapticFeedback)();
+    if (Platform.OS !== 'web') {
+      runOnJS(triggerHapticFeedback)();
+    }
   }, [scale, triggerHapticFeedback]);
 
   const handlePressOut = useCallback(() => {
@@ -55,29 +58,59 @@ const OptimizedControl = memo(({
     opacity: disabled ? 0.5 : opacity.value,
   }));
 
-  const buttonStyle = useMemo(() => [
-    styles.controlButton,
-    styles[variant],
-    isActive && styles.active,
-    disabled && styles.disabled,
-  ], [variant, isActive, disabled]);
+  const getGradientColors = () => {
+    if (disabled) {
+      return ['#94a3b8', '#64748b'];
+    }
+    
+    if (isActive) {
+      switch (variant) {
+        case 'primary':
+          return ['#1d4ed8', '#1e40af'];
+        case 'secondary':
+          return ['#ea580c', '#c2410c'];
+        case 'danger':
+          return ['#dc2626', '#b91c1c'];
+        default:
+          return ['#1d4ed8', '#1e40af'];
+      }
+    }
+    
+    switch (variant) {
+      case 'primary':
+        return ['#3b82f6', '#2563eb'];
+      case 'secondary':
+        return ['#6b7280', '#4b5563'];
+      case 'danger':
+        return ['#ef4444', '#dc2626'];
+      default:
+        return ['#3b82f6', '#2563eb'];
+    }
+  };
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={[styles.container, animatedStyle]}>
       <Pressable
-        style={buttonStyle}
+        style={styles.pressable}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={handlePress}
         disabled={disabled}
-        android_ripple={{ color: 'rgba(255, 255, 255, 0.2)' }}
       >
-        <View style={styles.iconContainer}>
-          {icon}
-        </View>
-        <Text style={[styles.buttonText, isActive && styles.activeText]}>
-          {title}
-        </Text>
+        <LinearGradient
+          colors={getGradientColors()}
+          style={[
+            styles.button,
+            isActive && styles.activeButton
+          ]}
+        >
+          <View style={styles.iconContainer}>
+            {icon}
+          </View>
+          <Text style={[styles.buttonText, isActive && styles.activeText]}>
+            {title}
+          </Text>
+        </LinearGradient>
       </Pressable>
     </Animated.View>
   );
@@ -86,34 +119,30 @@ const OptimizedControl = memo(({
 OptimizedControl.displayName = 'OptimizedControl';
 
 const styles = StyleSheet.create({
-  controlButton: {
+  container: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pressable: {
+    width: '100%',
+  },
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 12,
     minHeight: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  primary: {
-    backgroundColor: '#3b82f6',
-  },
-  secondary: {
-    backgroundColor: '#6b7280',
-  },
-  danger: {
-    backgroundColor: '#ef4444',
-  },
-  active: {
-    backgroundColor: '#1e40af',
-  },
-  disabled: {
-    backgroundColor: '#9ca3af',
+  activeButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   iconContainer: {
     marginRight: 8,

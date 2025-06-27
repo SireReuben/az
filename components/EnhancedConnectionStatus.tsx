@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Wifi, WifiOff, Circle, RefreshCw, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
+import { Wifi, WifiOff, Circle, RefreshCw, CheckCircle, TriangleAlert as AlertTriangle, Circle as XCircle } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import Animated, { 
   useSharedValue, 
@@ -111,8 +111,8 @@ export function EnhancedConnectionStatus({
   };
 
   const animatedPulseStyle = useAnimatedStyle(() => ({
-    shadowOpacity: isConnected ? interpolate(pulseAnimation.value, [0, 1], [0.2, 0.6]) : 0,
-    shadowRadius: isConnected ? interpolate(pulseAnimation.value, [0, 1], [8, 16]) : 0,
+    shadowOpacity: isConnected ? interpolate(pulseAnimation.value, [0, 1], [0.1, 0.3]) : 0.1,
+    shadowRadius: isConnected ? interpolate(pulseAnimation.value, [0, 1], [4, 8]) : 4,
   }));
 
   return (
@@ -123,6 +123,7 @@ export function EnhancedConnectionStatus({
       {
         shadowColor: getStatusColor(),
         borderColor: `${getStatusColor()}40`,
+        backgroundColor: '#ffffff',
       }
     ]}>
       {/* Main Status Row */}
@@ -219,7 +220,6 @@ export function EnhancedConnectionStatus({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   tabletStatusText: {
     fontSize: 16,
@@ -259,14 +259,14 @@ const styles = StyleSheet.create({
   qualityText: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 2,
   },
   refreshButton: {
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
   },
   tabletRefreshButton: {
     padding: 10,
@@ -276,12 +276,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: 'rgba(203, 213, 225, 0.8)',
   },
   detailsTitle: {
     fontSize: 12,
     fontFamily: 'Inter-Bold',
-    color: '#94a3b8',
+    color: '#64748b',
     marginBottom: 12,
   },
   helpSteps: {

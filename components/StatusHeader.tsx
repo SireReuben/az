@@ -24,7 +24,7 @@ export function StatusHeader() {
   }, [glowAnimation]);
 
   const animatedGlowStyle = useAnimatedStyle(() => ({
-    shadowOpacity: interpolate(glowAnimation.value, [0, 1], [0.2, 0.6]),
+    shadowOpacity: interpolate(glowAnimation.value, [0, 1], [0.1, 0.3]),
     shadowRadius: interpolate(glowAnimation.value, [0, 1], [8, 16]),
   }));
 
@@ -81,8 +81,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(59, 130, 246, 0.3)',
     shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -112,9 +110,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     letterSpacing: 3,
-    textShadowColor: 'rgba(59, 130, 246, 0.5)',
+    textShadowColor: 'rgba(59, 130, 246, 0.3)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
   },
@@ -125,7 +123,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: '#64748b',
     letterSpacing: 2,
     marginBottom: 12,
   },
@@ -135,17 +133,17 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   versionBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.3)',
+    borderColor: 'rgba(34, 197, 94, 0.2)',
   },
   versionText: {
     fontSize: 12,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
     letterSpacing: 0.5,
   },
 });

@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { StatusHeader } from '@/components/StatusHeader';
 import { SessionControls } from '@/components/SessionControls';
-import { SessionReport } from '@/components/SessionReport';
 import { EnhancedConnectionStatus } from '@/components/EnhancedConnectionStatus';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { ResponsiveContainer } from '@/components/ResponsiveContainer';
@@ -30,7 +29,6 @@ import {
   Activity,
   Clock,
   Shield,
-  Zap
 } from 'lucide-react-native';
 
 export default function SessionsScreen() {
@@ -42,7 +40,6 @@ export default function SessionsScreen() {
     endSession,
     refreshConnection,
     networkDetection,
-    registerForceUpdateCallback
   } = useDeviceState();
   
   const { addSessionAlert } = useAlerts();
@@ -139,7 +136,7 @@ export default function SessionsScreen() {
 
   return (
     <LinearGradient
-      colors={['#0f172a', '#1e293b', '#334155']}
+      colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
       style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -255,7 +252,7 @@ export default function SessionsScreen() {
                     <Text style={styles.infoPanelTitle}>Ready to Start</Text>
                     <View style={styles.infoList}>
                       <View style={styles.infoItem}>
-                        <Zap size={16} color="#3b82f6" />
+                        <Activity size={16} color="#3b82f6" />
                         <Text style={styles.infoText}>Ensure device is powered on</Text>
                       </View>
                       <View style={styles.infoItem}>
@@ -280,13 +277,6 @@ export default function SessionsScreen() {
               </View>
 
               <View style={isTablet && isLandscape ? styles.rightColumn : null}>
-                {deviceState.sessionActive && (
-                  <SessionReport 
-                    sessionData={sessionData} 
-                    registerForceUpdateCallback={registerForceUpdateCallback}
-                  />
-                )}
-                
                 {/* Connection Quality Panel */}
                 {isConnected && (
                   <View style={styles.qualityPanel}>
@@ -327,7 +317,7 @@ export default function SessionsScreen() {
                     showFeedback('info');
                   }}
                 >
-                  <Info size={20} color="#ffffff" />
+                  <Info size={20} color="#1e40af" />
                   <Text style={styles.infoButtonText}>Session Information</Text>
                 </Pressable>
               </View>
@@ -373,11 +363,11 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
     letterSpacing: -0.5,
   },
   sessionPanel: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 24,
     marginBottom: 20,
@@ -392,14 +382,14 @@ const styles = StyleSheet.create({
   panelTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     marginBottom: 8,
     textAlign: 'center',
   },
   panelDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -450,16 +440,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
   },
   infoPanel: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(239, 246, 255, 0.8)',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.2)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   infoPanelTitle: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#3b82f6',
+    color: '#1e40af',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -474,21 +469,26 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#93c5fd',
+    color: '#1e40af',
     flex: 1,
   },
   qualityPanel: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(240, 253, 244, 0.8)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.2)',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   qualityTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -508,12 +508,12 @@ const styles = StyleSheet.create({
   qualityText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#22c55e',
+    color: '#166534',
   },
   qualityDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#86efac',
+    color: '#166534',
     textAlign: 'center',
     lineHeight: 16,
     marginBottom: 16,
@@ -528,29 +528,34 @@ const styles = StyleSheet.create({
   metricValue: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
   },
   metricLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#86efac',
+    color: '#22c55e',
     marginTop: 2,
   },
   infoButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(107, 114, 128, 0.3)',
+    backgroundColor: '#ffffff',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(107, 114, 128, 0.4)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   infoButtonText: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+    color: '#1e40af',
     marginLeft: 8,
   },
 });

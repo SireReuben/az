@@ -17,13 +17,26 @@ interface VisualFeedbackProps {
 export function VisualFeedback({ type, visible, onComplete }: VisualFeedbackProps) {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.8);
+  const width = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      // Reset width to 0
+      width.value = 0;
+      
+      // Fade in
+      opacity.value = withTiming(1, { duration: 200 });
+      scale.value = withTiming(1, { duration: 200 });
+      
+      // Animate width from 0% to 100% over 1.5 seconds
+      width.value = withTiming(100, { duration: 1500 });
+      
+      // Fade out after completion
       opacity.value = withSequence(
         withTiming(1, { duration: 200 }),
         withDelay(1500, withTiming(0, { duration: 200 }))
       );
+      
       scale.value = withSequence(
         withTiming(1, { duration: 200 }),
         withDelay(1500, withTiming(0.8, { duration: 200 }))
@@ -35,11 +48,15 @@ export function VisualFeedback({ type, visible, onComplete }: VisualFeedbackProp
 
       return () => clearTimeout(timer);
     }
-  }, [visible, opacity, scale, onComplete]);
+  }, [visible, opacity, scale, width, onComplete]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
+  const containerStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
+  }));
+
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${width.value}%`,
   }));
 
   const getBackgroundColor = () => {
@@ -48,7 +65,7 @@ export function VisualFeedback({ type, visible, onComplete }: VisualFeedbackProp
       case 'error': return '#ef4444';
       case 'warning': return '#f59e0b';
       case 'info': return '#3b82f6';
-      default: return '#6b7280';
+      default: return '#64748b';
     }
   };
 
@@ -58,11 +75,21 @@ export function VisualFeedback({ type, visible, onComplete }: VisualFeedbackProp
     <Animated.View 
       style={[
         styles.container, 
-        animatedStyle,
-        { backgroundColor: getBackgroundColor() }
+        containerStyle,
       ]}
     >
-      <View style={styles.indicator} />
+      <View style={[
+        styles.background,
+        { backgroundColor: getBackgroundColor() }
+      ]}>
+        <Animated.View 
+          style={[
+            styles.progress,
+            progressStyle,
+            { backgroundColor: 'rgba(255, 255, 255, 0.3)' }
+          ]} 
+        />
+      </View>
     </Animated.View>
   );
 }
@@ -72,14 +99,24 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     left: '50%',
-    marginLeft: -50,
-    width: 100,
-    height: 4,
-    borderRadius: 2,
+    marginLeft: -100,
+    width: 200,
+    height: 6,
+    borderRadius: 3,
     zIndex: 1000,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  indicator: {
+  background: {
     flex: 1,
-    borderRadius: 2,
+    borderRadius: 3,
+  },
+  progress: {
+    height: '100%',
+    borderRadius: 3,
   },
 });

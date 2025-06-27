@@ -28,7 +28,6 @@ import {
   Square, 
   TriangleAlert as AlertTriangle, 
   Gauge,
-  Zap,
   Shield,
   Activity
 } from 'lucide-react-native';
@@ -143,7 +142,7 @@ export default function DashboardScreen() {
   if (!hasActiveSession) {
     return (
       <LinearGradient
-        colors={['#0f172a', '#1e293b', '#334155']}
+        colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
         style={[styles.container, { minHeight: height }]}
       >
         <SafeAreaView style={styles.safeArea}>
@@ -201,7 +200,7 @@ export default function DashboardScreen() {
 
   return (
     <LinearGradient
-      colors={['#0f172a', '#1e293b', '#334155']}
+      colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
       style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -456,21 +455,26 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
     letterSpacing: -0.5,
   },
   statusDashboard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
   },
   dashboardTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -481,12 +485,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statusCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#f8fafc',
     borderRadius: 16,
     padding: 16,
     minWidth: '45%',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(203, 213, 225, 0.8)',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statusHeader: {
     flexDirection: 'row',
@@ -496,7 +505,7 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: '#64748b',
     marginLeft: 8,
   },
   statusValue: {
@@ -506,7 +515,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusActive: {
-    color: '#ffffff',
+    color: '#0f172a',
   },
   statusIndicator: {
     width: '100%',
@@ -516,7 +525,7 @@ const styles = StyleSheet.create({
   speedBar: {
     width: '100%',
     height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(203, 213, 225, 0.5)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -526,26 +535,36 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   emergencySection: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: 'rgba(254, 242, 242, 0.8)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
     gap: 12,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   controlSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   sectionTitle: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -555,11 +574,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   safetyNotice: {
-    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    backgroundColor: 'rgba(255, 251, 235, 0.8)',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.2)',
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    shadowColor: '#f59e0b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   safetyHeader: {
     flexDirection: 'row',
@@ -569,13 +593,13 @@ const styles = StyleSheet.create({
   safetyTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#f59e0b',
+    color: '#b45309',
     marginLeft: 8,
   },
   safetyText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#fbbf24',
+    color: '#92400e',
     lineHeight: 20,
   },
 });

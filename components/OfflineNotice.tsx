@@ -35,12 +35,17 @@ export function OfflineNotice() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(254, 242, 242, 0.95)',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
@@ -71,13 +76,13 @@ const styles = StyleSheet.create({
   instructions: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#7f1d1d',
+    color: '#475569',
     marginBottom: 4,
   },
   stepText: {
     fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#7f1d1d',
+    color: '#475569',
     lineHeight: 18,
   },
 });

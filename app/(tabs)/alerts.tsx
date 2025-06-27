@@ -17,7 +17,7 @@ import Animated, {
   withTiming,
   interpolate
 } from 'react-native-reanimated';
-import { Bell, Activity, Shield, Zap, TriangleAlert as AlertTriangle } from 'lucide-react-native';
+import { Bell, Activity, Shield, TriangleAlert as AlertTriangle } from 'lucide-react-native';
 
 export default function AlertsScreen() {
   const { 
@@ -93,7 +93,7 @@ export default function AlertsScreen() {
 
   return (
     <LinearGradient
-      colors={['#0f172a', '#1e293b', '#334155']}
+      colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
       style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -133,7 +133,7 @@ export default function AlertsScreen() {
                 ]}>
                   <View style={styles.panelHeader}>
                     <View style={styles.headerLeft}>
-                      <Bell size={24} color="#ffffff" />
+                      <Bell size={24} color="#1e40af" />
                       <Text style={[
                         styles.panelTitle,
                         isTablet && styles.tabletPanelTitle
@@ -408,18 +408,20 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
     letterSpacing: -0.5,
   },
   alertsPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 24,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 12,
+    shadowOpacity: 0.2,
+    elevation: 8,
   },
   tabletAlertsPanel: {
     padding: 28,
@@ -438,7 +440,7 @@ const styles = StyleSheet.create({
   panelTitle: {
     fontSize: 20,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     marginLeft: 12,
   },
   tabletPanelTitle: {
@@ -470,7 +472,7 @@ const styles = StyleSheet.create({
   panelDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -479,12 +481,17 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   statsPanel: {
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.2)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   tabletStatsPanel: {
     padding: 24,
@@ -493,7 +500,7 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#3b82f6',
+    color: '#1e40af',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -511,18 +518,23 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   statCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#f8fafc',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     minWidth: '45%',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: '#e2e8f0',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statValue: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
     marginVertical: 8,
   },
   tabletStatValue: {
@@ -532,18 +544,23 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     fontFamily: 'Inter-Medium',
-    color: '#94a3b8',
+    color: '#64748b',
   },
   tabletStatLabel: {
     fontSize: 14,
   },
   statusPanel: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(240, 253, 244, 0.8)',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.2)',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabletStatusPanel: {
     padding: 24,
@@ -552,7 +569,7 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -571,7 +588,7 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#86efac',
+    color: '#166534',
   },
   tabletStatusLabel: {
     fontSize: 16,
@@ -579,17 +596,22 @@ const styles = StyleSheet.create({
   statusValue: {
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
   },
   tabletStatusValue: {
     fontSize: 16,
   },
   legendPanel: {
-    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(107, 114, 128, 0.2)',
+    borderColor: '#e2e8f0',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabletLegendPanel: {
     padding: 20,
@@ -598,7 +620,7 @@ const styles = StyleSheet.create({
   legendTitle: {
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#94a3b8',
+    color: '#64748b',
     marginBottom: 12,
     textAlign: 'center',
   },
@@ -622,6 +644,6 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#64748b',
   },
 });

@@ -36,7 +36,6 @@ export default function SettingsScreen() {
   const [hapticEnabled, setHapticEnabled] = useState(true);
   const [autoConnect, setAutoConnect] = useState(true);
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
 
   // Animation values
   const settingsScale = useSharedValue(1);
@@ -121,13 +120,14 @@ export default function SettingsScreen() {
           <Switch
             value={switchValue}
             onValueChange={onSwitchChange}
-            trackColor={{ false: '#374151', true: '#3b82f6' }}
-            thumbColor={switchValue ? '#ffffff' : '#9ca3af'}
+            trackColor={{ false: '#e2e8f0', true: '#bfdbfe' }}
+            thumbColor={switchValue ? '#3b82f6' : '#94a3b8'}
+            ios_backgroundColor="#e2e8f0"
           />
         ) : (
           <>
             {value && <Text style={styles.settingValueText}>{value}</Text>}
-            <ChevronRight size={16} color="#6b7280" />
+            <ChevronRight size={16} color="#94a3b8" />
           </>
         )}
       </View>
@@ -136,7 +136,7 @@ export default function SettingsScreen() {
 
   return (
     <LinearGradient
-      colors={['#0f172a', '#1e293b', '#334155']}
+      colors={['#f0f9ff', '#e0f2fe', '#bae6fd']}
       style={[styles.container, { minHeight: height }]}
     >
       <SafeAreaView style={styles.safeArea}>
@@ -228,13 +228,9 @@ export default function SettingsScreen() {
                   <SettingItem
                     icon={<Monitor size={20} color="#06b6d4" />}
                     title="Theme"
-                    description="Dark mode interface"
-                    showSwitch={true}
-                    switchValue={darkMode}
-                    onSwitchChange={(value) => {
-                      setDarkMode(value);
-                      showFeedback('success');
-                    }}
+                    description="Light mode interface"
+                    value="Light"
+                    onPress={createOptimizedHandler(() => showFeedback('info'), { haptic: 'light' })}
                   />
                 </View>
 
@@ -365,21 +361,26 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#0f172a',
     letterSpacing: -0.5,
   },
   settingsPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#ffffff',
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   panelTitle: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
-    color: '#ffffff',
+    color: '#1e40af',
     marginBottom: 16,
   },
   settingItem: {
@@ -387,13 +388,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: '#e2e8f0',
   },
   settingIcon: {
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(239, 246, 255, 0.8)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -404,13 +405,13 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+    color: '#0f172a',
     marginBottom: 2,
   },
   settingDescription: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#94a3b8',
+    color: '#64748b',
   },
   settingValue: {
     flexDirection: 'row',
@@ -423,16 +424,21 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   statusPanel: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(240, 253, 244, 0.8)',
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(34, 197, 94, 0.2)',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statusTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -447,11 +453,11 @@ const styles = StyleSheet.create({
   statusLabel: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#86efac',
+    color: '#166534',
   },
   statusValue: {
     fontSize: 14,
     fontFamily: 'Inter-Bold',
-    color: '#22c55e',
+    color: '#166534',
   },
 });

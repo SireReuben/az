@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Play, Lock } from 'lucide-react-native';
 import { router } from 'expo-router';
 
@@ -11,7 +12,7 @@ export function SessionRequiredNotice() {
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Lock size={48} color="#6b7280" />
+        <Lock size={48} color="#1e40af" />
       </View>
       
       <Text style={styles.title}>Session Required</Text>
@@ -23,9 +24,15 @@ export function SessionRequiredNotice() {
       <TouchableOpacity 
         style={styles.button}
         onPress={handleGoToSessions}
+        activeOpacity={0.8}
       >
-        <Play size={20} color="#ffffff" />
-        <Text style={styles.buttonText}>Go to Session Manager</Text>
+        <LinearGradient
+          colors={['#3b82f6', '#1d4ed8']}
+          style={styles.buttonGradient}
+        >
+          <Play size={20} color="#ffffff" />
+          <Text style={styles.buttonText}>Go to Session Manager</Text>
+        </LinearGradient>
       </TouchableOpacity>
       
       <View style={styles.infoBox}>
@@ -43,43 +50,55 @@ export function SessionRequiredNotice() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#ffffff',
     borderRadius: 16,
     padding: 24,
     marginBottom: 16,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 12,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   iconContainer: {
     marginBottom: 16,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    padding: 16,
+    borderRadius: 50,
   },
   title: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    color: '#374151',
+    color: '#1e40af',
     marginBottom: 12,
     textAlign: 'center',
   },
   description: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: '#6b7280',
+    color: '#475569',
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
   },
   button: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 24,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#22c55e',
     paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
-    marginBottom: 24,
   },
   buttonText: {
     fontSize: 16,
@@ -88,21 +107,23 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   infoBox: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f0f9ff',
     borderRadius: 12,
     padding: 16,
     width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   infoTitle: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
-    color: '#374151',
+    color: '#1e40af',
     marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-    color: '#6b7280',
+    color: '#475569',
     lineHeight: 20,
   },
 });
