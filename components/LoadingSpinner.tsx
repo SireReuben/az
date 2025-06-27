@@ -1,42 +1,55 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withRepeat,
+  withTiming,
+  interpolate
+} from 'react-native-reanimated';
 
 interface LoadingSpinnerProps {
   isVisible: boolean;
 }
 
 export function LoadingSpinner({ isVisible }: LoadingSpinnerProps) {
-  const spinValue = useRef(new Animated.Value(0)).current;
+  const rotation = useSharedValue(0);
+  const scale = useSharedValue(1);
 
   useEffect(() => {
     if (isVisible) {
-      const spin = Animated.loop(
-        Animated.timing(spinValue, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        })
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 2000 }),
+        -1,
+        false
       );
-      spin.start();
-      return () => spin.stop();
+      scale.value = withRepeat(
+        withTiming(1.1, { duration: 1000 }),
+        -1,
+        true
+      );
+    } else {
+      rotation.value = 0;
+      scale.value = 1;
     }
-  }, [isVisible, spinValue]);
+  }, [isVisible, rotation, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { rotate: `${rotation.value}deg` },
+      { scale: scale.value }
+    ],
+    opacity: interpolate(scale.value, [1, 1.1], [0.8, 1]),
+  }));
 
   if (!isVisible) return null;
 
-  const rotate = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
   return (
     <View style={styles.container}>
-      <Animated.View 
-        style={[
-          styles.spinner,
-          { transform: [{ rotate }] }
-        ]}
-      />
+      <Animated.View style={[styles.spinner, animatedStyle]}>
+        <View style={styles.innerRing} />
+        <View style={styles.outerRing} />
+      </Animated.View>
     </View>
   );
 }
@@ -48,11 +61,25 @@ const styles = StyleSheet.create({
     marginVertical: 24,
   },
   spinner: {
-    width: 40,
-    height: 40,
-    borderWidth: 4,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderTopColor: '#ffffff',
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    position: 'relative',
+  },
+  innerRing: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderWidth: 3,
+    borderColor: 'transparent',
+    borderTopColor: '#3b82f6',
+    borderRadius: 25,
+  },
+  outerRing: {
+    position: 'absolute',
+    width: 50,
+    height: 50,
+    borderWidth: 3,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderRadius: 25,
   },
 });

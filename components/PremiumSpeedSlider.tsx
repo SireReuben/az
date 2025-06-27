@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Dimensions, PanResponder, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  runOnJS,
   interpolate,
   interpolateColor,
+  runOnJS,
 } from 'react-native-reanimated';
 import { Gauge, Zap } from 'lucide-react-native';
 import { useOptimizedTouch } from '@/hooks/useOptimizedTouch';
@@ -41,12 +40,15 @@ export function PremiumSpeedSlider({
   const thumbScale = useSharedValue(1);
   const glowOpacity = useSharedValue(0);
   const isPressed = useSharedValue(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Initialize position based on value
   useEffect(() => {
-    const position = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
-    translateX.value = withSpring(position, { damping: 15, stiffness: 150 });
-  }, [value, min, max, translateX]);
+    if (!isDragging) {
+      const position = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
+      translateX.value = withSpring(position, { damping: 15, stiffness: 150 });
+    }
+  }, [value, min, max, translateX, isDragging]);
 
   const updateValue = useCallback((newValue: number) => {
     const clampedValue = Math.max(min, Math.min(max, newValue));
@@ -54,30 +56,40 @@ export function PremiumSpeedSlider({
     onValueChange(steppedValue);
   }, [onValueChange, min, max, step]);
 
-  const panGesture = Gesture.Pan()
-    .enabled(!disabled)
-    .onStart(() => {
+  const handlePanResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => !disabled,
+    onMoveShouldSetPanResponder: () => !disabled,
+    
+    onPanResponderGrant: () => {
+      setIsDragging(true);
       isPressed.value = true;
       thumbScale.value = withSpring(1.2, { damping: 15, stiffness: 300 });
       glowOpacity.value = withTiming(1, { duration: 200 });
-      runOnJS(triggerHaptic)('light');
-    })
-    .onUpdate((event) => {
-      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, event.translationX + translateX.value));
+      
+      if (Platform.OS !== 'web') {
+        runOnJS(triggerHaptic)('light');
+      }
+    },
+    
+    onPanResponderMove: (_, gestureState) => {
+      const newPosition = Math.max(0, Math.min(SLIDER_WIDTH - THUMB_SIZE, gestureState.dx + translateX.value));
       translateX.value = newPosition;
       
       // Calculate new value
       const percentage = newPosition / (SLIDER_WIDTH - THUMB_SIZE);
       const newValue = min + percentage * (max - min);
+      const steppedValue = Math.round(newValue / step) * step;
       
       // Trigger haptic feedback on value change
-      const steppedValue = Math.round(newValue / step) * step;
-      if (Math.abs(steppedValue - value) >= step) {
+      if (Math.abs(steppedValue - value) >= step && Platform.OS !== 'web') {
         runOnJS(triggerHaptic)('light');
-        runOnJS(updateValue)(steppedValue);
       }
-    })
-    .onEnd(() => {
+      
+      runOnJS(updateValue)(steppedValue);
+    },
+    
+    onPanResponderRelease: () => {
+      setIsDragging(false);
       isPressed.value = false;
       thumbScale.value = withSpring(1, { damping: 15, stiffness: 300 });
       glowOpacity.value = withTiming(0, { duration: 300 });
@@ -86,8 +98,11 @@ export function PremiumSpeedSlider({
       const finalPosition = ((value - min) / (max - min)) * (SLIDER_WIDTH - THUMB_SIZE);
       translateX.value = withSpring(finalPosition, { damping: 15, stiffness: 150 });
       
-      runOnJS(triggerHaptic)('medium');
-    });
+      if (Platform.OS !== 'web') {
+        runOnJS(triggerHaptic)('medium');
+      }
+    },
+  });
 
   // Animated styles
   const trackStyle = useAnimatedStyle(() => {
@@ -185,20 +200,21 @@ export function PremiumSpeedSlider({
           ))}
         </View>
 
-        {/* Gesture Detector */}
-        <GestureDetector gesture={panGesture}>
-          <View style={styles.gestureArea}>
-            {/* Thumb Glow */}
-            <Animated.View style={[styles.thumbGlow, glowStyle]} />
-            
-            {/* Thumb */}
-            <Animated.View style={[styles.thumb, thumbStyle]}>
-              <View style={styles.thumbInner}>
-                <View style={styles.thumbGrip} />
-              </View>
-            </Animated.View>
-          </View>
-        </GestureDetector>
+        {/* Gesture Area */}
+        <View 
+          style={styles.gestureArea}
+          {...handlePanResponder.panHandlers}
+        >
+          {/* Thumb Glow */}
+          <Animated.View style={[styles.thumbGlow, glowStyle]} />
+          
+          {/* Thumb */}
+          <Animated.View style={[styles.thumb, thumbStyle]}>
+            <View style={styles.thumbInner}>
+              <View style={styles.thumbGrip} />
+            </View>
+          </Animated.View>
+        </View>
       </View>
 
       {/* Speed Zones */}
@@ -222,12 +238,17 @@ export function PremiumSpeedSlider({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     borderRadius: 20,
     padding: 24,
     marginVertical: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   disabled: {
     opacity: 0.5,
@@ -285,7 +306,7 @@ const styles = StyleSheet.create({
     left: THUMB_SIZE / 2,
     right: THUMB_SIZE / 2,
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(71, 85, 105, 0.5)',
     borderRadius: 4,
     overflow: 'hidden',
   },
@@ -317,7 +338,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 2,
     height: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(148, 163, 184, 0.6)',
     borderRadius: 1,
   },
   gestureArea: {

@@ -14,6 +14,7 @@ export default function WelcomeScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
   const [logoAnim] = useState(new Animated.Value(0));
+  const [particleAnim] = useState(new Animated.Value(0));
   const { hasLocationPermission, hasNetworkAccess } = useNetworkPermissions();
   const [showManualConnect, setShowManualConnect] = useState(false);
   const { isTablet, isLandscape, screenType, width, height, isWideScreen } = useDeviceOrientation();
@@ -32,19 +33,26 @@ export default function WelcomeScreen() {
   const canProceed = Platform.OS === 'web' || (hasLocationPermission && hasNetworkAccess);
 
   useEffect(() => {
-    // Start welcome animation sequence immediately
+    // Start premium animation sequence
     Animated.sequence([
-      // First animate the logo
-      Animated.timing(logoAnim, {
+      // Particle animation
+      Animated.timing(particleAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 2000,
         useNativeDriver: true,
       }),
-      // Then animate the rest of the content
+      // Logo animation with spring effect
+      Animated.spring(logoAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      // Content fade in
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 800,
+          duration: 1200,
           useNativeDriver: true,
         }),
         Animated.spring(scaleAnim, {
@@ -56,7 +64,7 @@ export default function WelcomeScreen() {
       ])
     ]).start();
 
-    // Show manual connect option after appropriate time based on platform and permissions
+    // Show manual connect option after appropriate time
     const delay = Platform.OS === 'web' ? 5000 : 8000;
     const timer = setTimeout(() => {
       if (!isFullyConnected && canProceed) {
@@ -79,7 +87,7 @@ export default function WelcomeScreen() {
 
   const handleManualConnect = () => {
     if (!canProceed) {
-      return; // This shouldn't happen due to NetworkPermissionGuard, but just in case
+      return;
     }
     router.replace('/(tabs)/sessions');
   };
@@ -88,12 +96,12 @@ export default function WelcomeScreen() {
     if (isTablet && isLandscape && screenType !== 'phone') {
       return {
         ...styles.tabletLandscapeLayout,
-        minHeight: height, // Ensure full height usage
+        minHeight: height,
         paddingHorizontal: isWideScreen ? 60 : 40,
       };
     }
     return {
-      minHeight: height, // Ensure full height usage on all devices
+      minHeight: height,
     };
   };
 
@@ -110,7 +118,6 @@ export default function WelcomeScreen() {
       return 'Please connect to "AEROSPIN CONTROL" WiFi network';
     }
 
-    // Enhanced connection messages based on detection layers
     if (!networkInfo.isWifiEnabled) {
       return 'WiFi is disabled - Please enable WiFi and connect to "AEROSPIN CONTROL"';
     }
@@ -132,31 +139,59 @@ export default function WelcomeScreen() {
 
   const getDetailedStatus = () => {
     if (detectionStatus === 'checking') {
-      return 'Checking all connection layers...';
+      return 'Establishing secure connection...';
     }
     
     if (isFullyConnected) {
-      return `Fully connected with ${connectionQuality} quality`;
+      return `Connected with ${connectionQuality} signal quality`;
     }
     
     const layers = [];
-    if (isConnectedToArduinoWifi) layers.push('✓ WiFi Network');
-    if (isArduinoReachable) layers.push('✓ TCP Connection');
+    if (isConnectedToArduinoWifi) layers.push('✓ Network Layer');
+    if (isArduinoReachable) layers.push('✓ Transport Layer');
     if (isArduinoResponding) layers.push('✓ Application Layer');
     
     if (layers.length === 0) {
-      return 'No connection layers established';
+      return 'Initializing connection protocols...';
     }
     
-    return `Partial connection: ${layers.join(', ')}`;
+    return `Establishing: ${layers.join(', ')}`;
   };
 
   return (
     <NetworkPermissionGuard>
       <LinearGradient
-        colors={['#1e3a8a', '#3b82f6', '#60a5fa']}
+        colors={['#0f172a', '#1e293b', '#334155', '#475569']}
         style={[styles.container, { minHeight: height }]}
       >
+        {/* Animated background particles */}
+        <Animated.View style={[
+          styles.particleContainer,
+          {
+            opacity: particleAnim,
+            transform: [{
+              translateY: particleAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 0],
+              })
+            }]
+          }
+        ]}>
+          {[...Array(20)].map((_, i) => (
+            <Animated.View
+              key={i}
+              style={[
+                styles.particle,
+                {
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 2}s`,
+                }
+              ]}
+            />
+          ))}
+        </Animated.View>
+
         <ResponsiveContainer style={styles.responsiveContainer} fillScreen={true}>
           <Animated.View
             style={[
@@ -183,10 +218,16 @@ export default function WelcomeScreen() {
                         inputRange: [0, 1],
                         outputRange: [0.5, 1],
                       })
+                    }, {
+                      rotateY: logoAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['180deg', '0deg'],
+                      })
                     }]
                   }
                 ]}
               >
+                <View style={styles.logoGlow} />
                 <Image 
                   source={require('@/assets/images/Aerospin-1-300x200.png')}
                   style={[
@@ -196,29 +237,59 @@ export default function WelcomeScreen() {
                   ]}
                   resizeMode="contain"
                 />
+                <View style={styles.logoReflection} />
               </Animated.View>
               
-              <Text style={[
+              <Animated.Text style={[
                 styles.title,
                 isTablet && styles.tabletTitle,
-                isLandscape && isTablet && styles.landscapeTitle
+                isLandscape && isTablet && styles.landscapeTitle,
+                {
+                  opacity: logoAnim,
+                  transform: [{
+                    translateY: logoAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                    })
+                  }]
+                }
               ]}>
                 Welcome to
-              </Text>
-              <Text style={[
+              </Animated.Text>
+              
+              <Animated.Text style={[
                 styles.brand,
                 isTablet && styles.tabletBrand,
-                isLandscape && isTablet && styles.landscapeBrand
+                isLandscape && isTablet && styles.landscapeBrand,
+                {
+                  opacity: logoAnim,
+                  transform: [{
+                    scale: logoAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.8, 1],
+                    })
+                  }]
+                }
               ]}>
                 AEROSPIN
-              </Text>
-              <Text style={[
+              </Animated.Text>
+              
+              <Animated.Text style={[
                 styles.subtitle,
                 isTablet && styles.tabletSubtitle,
-                isLandscape && isTablet && styles.landscapeSubtitle
+                isLandscape && isTablet && styles.landscapeSubtitle,
+                {
+                  opacity: logoAnim,
+                  transform: [{
+                    translateY: logoAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [20, 0],
+                    })
+                  }]
+                }
               ]}>
-                CONTROL SYSTEM
-              </Text>
+                PRECISION CONTROL SYSTEM
+              </Animated.Text>
             </View>
 
             <View style={[
@@ -229,20 +300,26 @@ export default function WelcomeScreen() {
               
               {/* Enhanced status display */}
               <View style={styles.statusContainer}>
-                <Text style={[
+                <Animated.Text style={[
                   styles.statusText,
-                  isTablet && styles.tabletStatusText
+                  isTablet && styles.tabletStatusText,
+                  {
+                    opacity: fadeAnim,
+                  }
                 ]}>
                   {getDetailedStatus()}
-                </Text>
+                </Animated.Text>
                 
                 {detectionStatus === 'checking' && (
-                  <Text style={[
+                  <Animated.Text style={[
                     styles.statusSubtext,
-                    isTablet && styles.tabletStatusSubtext
+                    isTablet && styles.tabletStatusSubtext,
+                    {
+                      opacity: fadeAnim,
+                    }
                   ]}>
-                    Verifying network, transport, and application layers...
-                  </Text>
+                    Verifying network protocols and device authentication...
+                  </Animated.Text>
                 )}
               </View>
               
@@ -251,29 +328,45 @@ export default function WelcomeScreen() {
               )}
               
               {isFullyConnected && (
-                <Animated.View style={styles.successMessage}>
+                <Animated.View style={[
+                  styles.successMessage,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{
+                      scale: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.9, 1],
+                      })
+                    }]
+                  }
+                ]}>
                   <Text style={[
                     styles.successText,
                     isTablet && styles.tabletSuccessText
                   ]}>
-                    Connected Successfully!
+                    ✓ Connection Established
                   </Text>
                   <Text style={[
                     styles.loadingText,
                     isTablet && styles.tabletLoadingText
                   ]}>
-                    Loading Session Manager...
+                    Initializing Control Interface...
                   </Text>
                 </Animated.View>
               )}
 
               {!isFullyConnected && showManualConnect && canProceed && (
-                <View style={styles.manualConnectContainer}>
+                <Animated.View style={[
+                  styles.manualConnectContainer,
+                  {
+                    opacity: fadeAnim,
+                  }
+                ]}>
                   <Text style={[
                     styles.manualConnectText,
                     isTablet && styles.tabletManualConnectText
                   ]}>
-                    Unable to auto-connect to device
+                    Unable to establish automatic connection
                   </Text>
                   <Text style={[
                     styles.manualConnectSubtext,
@@ -287,15 +380,21 @@ export default function WelcomeScreen() {
                       isTablet && styles.tabletManualConnectButton
                     ]}
                     onPress={handleManualConnect}
+                    activeOpacity={0.8}
                   >
-                    <Text style={[
-                      styles.manualConnectButtonText,
-                      isTablet && styles.tabletManualConnectButtonText
-                    ]}>
-                      Continue Anyway
-                    </Text>
+                    <LinearGradient
+                      colors={['#3b82f6', '#1d4ed8']}
+                      style={styles.buttonGradient}
+                    >
+                      <Text style={[
+                        styles.manualConnectButtonText,
+                        isTablet && styles.tabletManualConnectButtonText
+                      ]}>
+                        Continue to Control Center
+                      </Text>
+                    </LinearGradient>
                   </TouchableOpacity>
-                </View>
+                </Animated.View>
               )}
             </View>
 
@@ -303,18 +402,24 @@ export default function WelcomeScreen() {
               styles.footer,
               isTablet && isLandscape && styles.tabletLandscapeFooter
             ]}>
-              <Text style={[
+              <Animated.Text style={[
                 styles.tagline,
-                isTablet && styles.tabletTagline
+                isTablet && styles.tabletTagline,
+                {
+                  opacity: fadeAnim,
+                }
               ]}>
-                REVOLUTIONIZING CONNECTIVITY,
-              </Text>
-              <Text style={[
+                REVOLUTIONIZING PRECISION CONTROL,
+              </Animated.Text>
+              <Animated.Text style={[
                 styles.tagline,
-                isTablet && styles.tabletTagline
+                isTablet && styles.tabletTagline,
+                {
+                  opacity: fadeAnim,
+                }
               ]}>
-                ONE FIBER AT A TIME.
-              </Text>
+                ONE INNOVATION AT A TIME.
+              </Animated.Text>
             </View>
           </Animated.View>
         </ResponsiveContainer>
@@ -329,9 +434,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  particleContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  particle: {
+    position: 'absolute',
+    width: 2,
+    height: 2,
+    backgroundColor: '#60a5fa',
+    borderRadius: 1,
+    opacity: 0.6,
+  },
   responsiveContainer: {
     flex: 1,
     justifyContent: 'center',
+    zIndex: 1,
   },
   content: {
     flex: 1,
@@ -358,79 +480,106 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     marginBottom: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  tabletLogoContainer: {
-    marginBottom: 24,
+    backgroundColor: 'rgba(96, 165, 250, 0.1)',
     borderRadius: 24,
     padding: 20,
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  tabletLogoContainer: {
+    marginBottom: 28,
+    borderRadius: 32,
+    padding: 28,
+  },
+  logoGlow: {
+    position: 'absolute',
+    top: -10,
+    left: -10,
+    right: -10,
+    bottom: -10,
+    backgroundColor: '#3b82f6',
+    borderRadius: 34,
+    opacity: 0.2,
+    blur: 20,
+  },
+  logoReflection: {
+    position: 'absolute',
+    top: '50%',
+    left: '20%',
+    width: '30%',
+    height: '30%',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 8,
+    transform: [{ rotate: '-45deg' }],
   },
   logo: {
-    width: 120,
-    height: 80,
+    width: 140,
+    height: 93,
+    zIndex: 1,
   },
   tabletLogo: {
+    width: 180,
+    height: 120,
+  },
+  landscapeLogo: {
     width: 160,
     height: 107,
   },
-  landscapeLogo: {
-    width: 140,
-    height: 93,
-  },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: 'Inter-Regular',
-    color: '#ffffff',
+    color: '#e2e8f0',
     marginBottom: 8,
     textAlign: 'center',
   },
   tabletTitle: {
-    fontSize: 28,
+    fontSize: 32,
     marginBottom: 12,
   },
   landscapeTitle: {
-    fontSize: 24,
+    fontSize: 28,
     marginBottom: 10,
   },
   brand: {
-    fontSize: 42,
+    fontSize: 48,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
     textAlign: 'center',
-    letterSpacing: 3,
-    marginBottom: 4,
+    letterSpacing: 4,
+    marginBottom: 6,
+    textShadowColor: 'rgba(59, 130, 246, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 20,
   },
   tabletBrand: {
-    fontSize: 56,
-    letterSpacing: 4,
-    marginBottom: 8,
+    fontSize: 64,
+    letterSpacing: 6,
+    marginBottom: 10,
   },
   landscapeBrand: {
-    fontSize: 48,
-    letterSpacing: 3,
-    marginBottom: 6,
+    fontSize: 56,
+    letterSpacing: 5,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-    color: '#e0f2fe',
+    color: '#94a3b8',
     textAlign: 'center',
-    letterSpacing: 1,
+    letterSpacing: 2,
   },
   tabletSubtitle: {
-    fontSize: 22,
-    letterSpacing: 1.5,
+    fontSize: 24,
+    letterSpacing: 3,
   },
   landscapeSubtitle: {
-    fontSize: 18,
-    letterSpacing: 1.2,
+    fontSize: 20,
+    letterSpacing: 2.5,
   },
   middle: {
     alignItems: 'center',
@@ -444,100 +593,115 @@ const styles = StyleSheet.create({
   },
   statusContainer: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   statusText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#e0f2fe',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  tabletStatusText: {
     fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#60a5fa',
+    textAlign: 'center',
     marginBottom: 6,
   },
+  tabletStatusText: {
+    fontSize: 18,
+    marginBottom: 8,
+  },
   statusSubtext: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Inter-Regular',
-    color: '#b0c4de',
+    color: '#94a3b8',
     textAlign: 'center',
   },
   tabletStatusSubtext: {
-    fontSize: 14,
+    fontSize: 15,
   },
   successMessage: {
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 28,
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
   },
   successText: {
-    fontSize: 18,
-    fontFamily: 'Inter-Medium',
-    color: '#ffffff',
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#22c55e',
     marginBottom: 8,
   },
   tabletSuccessText: {
-    fontSize: 24,
+    fontSize: 26,
     marginBottom: 12,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter-Regular',
-    color: '#e0f2fe',
+    color: '#86efac',
   },
   tabletLoadingText: {
-    fontSize: 18,
+    fontSize: 19,
   },
   manualConnectContainer: {
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 28,
     width: '100%',
   },
   manualConnectText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Inter-Medium',
     color: '#ffffff',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   tabletManualConnectText: {
-    fontSize: 20,
-    marginBottom: 12,
+    fontSize: 22,
+    marginBottom: 14,
   },
   manualConnectSubtext: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter-Regular',
-    color: '#e0f2fe',
+    color: '#94a3b8',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
     paddingHorizontal: 20,
+    lineHeight: 22,
   },
   tabletManualConnectSubtext: {
-    fontSize: 18,
-    marginBottom: 32,
+    fontSize: 19,
+    marginBottom: 36,
     paddingHorizontal: 40,
   },
   manualConnectButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   tabletManualConnectButton: {
+    borderRadius: 20,
+  },
+  buttonGradient: {
     paddingHorizontal: 32,
     paddingVertical: 16,
-    borderRadius: 16,
+    alignItems: 'center',
   },
   manualConnectButtonText: {
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
+    fontSize: 17,
+    fontFamily: 'Inter-Bold',
     color: '#ffffff',
   },
   tabletManualConnectButtonText: {
-    fontSize: 20,
+    fontSize: 21,
   },
   footer: {
     alignItems: 'center',
@@ -550,12 +714,12 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-    color: '#e0f2fe',
+    color: '#64748b',
     textAlign: 'center',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   tabletTagline: {
     fontSize: 18,
-    letterSpacing: 1.5,
+    letterSpacing: 2,
   },
 });

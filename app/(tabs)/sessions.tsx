@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { StatusHeader } from '@/components/StatusHeader';
 import { SessionControls } from '@/components/SessionControls';
 import { SessionReport } from '@/components/SessionReport';
@@ -69,6 +70,11 @@ export default function SessionsScreen() {
     await startSession();
     showFeedback('success');
     addSessionAlert('success', 'Session Started', 'Device control session initiated successfully');
+    
+    // Navigate to dashboard after starting session
+    setTimeout(() => {
+      router.push('/(tabs)');
+    }, 1500);
   }, { haptic: 'medium' });
 
   const handleEndSession = createOptimizedHandler(async () => {
@@ -185,17 +191,26 @@ export default function SessionsScreen() {
                         style={[styles.sessionButton, styles.startButton]}
                         onPress={handleStartSession}
                       >
-                        <Play size={24} color="#ffffff" />
-                        <Text style={styles.sessionButtonText}>Start Session</Text>
-                        <View style={styles.buttonGlow} />
+                        <LinearGradient
+                          colors={['#22c55e', '#16a34a']}
+                          style={styles.buttonGradient}
+                        >
+                          <Play size={24} color="#ffffff" />
+                          <Text style={styles.sessionButtonText}>Start Session</Text>
+                        </LinearGradient>
                       </Pressable>
                     ) : (
                       <Pressable
                         style={[styles.sessionButton, styles.endButton]}
                         onPress={handleEndSession}
                       >
-                        <Square size={24} color="#ffffff" />
-                        <Text style={styles.sessionButtonText}>End Session</Text>
+                        <LinearGradient
+                          colors={['#ef4444', '#dc2626']}
+                          style={styles.buttonGradient}
+                        >
+                          <Square size={24} color="#ffffff" />
+                          <Text style={styles.sessionButtonText}>End Session</Text>
+                        </LinearGradient>
                       </Pressable>
                     )}
                   </View>
@@ -310,7 +325,6 @@ export default function SessionsScreen() {
                   style={styles.infoButton}
                   onPress={() => {
                     showFeedback('info');
-                    // Show session info modal or alert
                   }}
                 >
                   <Info size={20} color="#ffffff" />
@@ -363,12 +377,17 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   sessionPanel: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     borderRadius: 20,
     padding: 24,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   panelTitle: {
     fontSize: 20,
@@ -389,36 +408,33 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sessionButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  startButton: {
+    shadowColor: '#22c55e',
+  },
+  endButton: {
+    shadowColor: '#ef4444',
+  },
+  buttonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 16,
-    minWidth: 200,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  startButton: {
-    backgroundColor: '#22c55e',
-  },
-  endButton: {
-    backgroundColor: '#ef4444',
   },
   sessionButtonText: {
     fontSize: 18,
     fontFamily: 'Inter-Bold',
     color: '#ffffff',
     marginLeft: 12,
-  },
-  buttonGlow: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
   },
   statusIndicators: {
     gap: 12,

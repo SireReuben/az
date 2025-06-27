@@ -4,7 +4,6 @@ import {
   Gauge, 
   Settings, 
   Bell,
-  Zap,
 } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import { Platform, StyleSheet } from 'react-native';
@@ -32,13 +31,18 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#1e40af',
-          borderTopColor: '#3b82f6',
+          backgroundColor: '#0f172a',
+          borderTopColor: '#1e293b',
           borderTopWidth: 1,
           height: getTabBarHeight(),
           paddingBottom: padding.bottom,
           paddingTop: padding.top,
           paddingHorizontal: padding.horizontal,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 20,
           // Ensure tab bar fills width on landscape tablets
           width: '100%',
           position: 'absolute',
@@ -51,8 +55,8 @@ export default function TabLayout() {
             maxWidth: width,
           }),
         },
-        tabBarActiveTintColor: '#ffffff',
-        tabBarInactiveTintColor: '#93c5fd',
+        tabBarActiveTintColor: '#60a5fa',
+        tabBarInactiveTintColor: '#475569',
         tabBarLabelStyle: {
           fontSize: isTablet ? (isLandscape ? 12 : 14) : 12,
           fontFamily: 'Inter-Medium',
@@ -81,15 +85,6 @@ export default function TabLayout() {
           title: 'Dashboard',
           tabBarIcon: ({ size, color }) => (
             <Gauge size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="performance"
-        options={{
-          title: 'Performance',
-          tabBarIcon: ({ size, color }) => (
-            <Zap size={isTablet ? (isLandscape ? 22 : 26) : 22} color={color} />
           ),
         }}
       />

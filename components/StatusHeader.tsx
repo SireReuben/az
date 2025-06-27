@@ -56,7 +56,7 @@ export function StatusHeader() {
         styles.subtitle,
         isTablet && styles.tabletSubtitle
       ]}>
-        GLOBAL CONTROL SYSTEM
+        PRECISION CONTROL SYSTEM
       </Text>
       
       <View style={styles.versionBadge}>
@@ -73,12 +73,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   logoContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
     borderRadius: 20,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
     shadowColor: '#3b82f6',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
