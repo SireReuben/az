@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Share, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FileText, Download, Share2, Clock, Activity, TriangleAlert as AlertTriangle, Settings, Shield } from 'lucide-react-native';
+import { FileText, Download, Share2, Clock, Activity, TriangleAlert as AlertTriangle, Settings, Shield, RefreshCw } from 'lucide-react-native';
 import { useDeviceOrientation } from '@/hooks/useDeviceOrientation';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -487,22 +487,8 @@ export function SessionReport({ sessionData, registerForceUpdateCallback }: Sess
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(htmlFilePath);
         } else {
-          Alert.alert('Sharing not available', 'Sharing is not available on this device');
-        }
-      }
-      
-      setIsRefreshing(false);
-    } catch (error) {
-      console.error('Failed to generate PDF:', error);
-      Alert.alert('Export Failed', 'Unable to generate PDF report. Please try again.');
-      setIsRefreshing(false);
-    }
-  };
-
-  // Share report as text
-  const handleShareReport = async () => {
-    try {
-      const reportText = `
+          // Fallback to regular Share API
+          const reportText = `
 AEROSPIN SESSION REPORT
 Generated: ${new Date().toLocaleString()}
 Session Start: ${sessionData.startTime}
@@ -516,6 +502,7 @@ System Events: ${sessionStats.systemEvents}
 Emergency Events: ${sessionStats.emergencyEvents}
 Arduino Communications: ${sessionStats.arduinoEvents}
 Safety Events: ${sessionStats.safetyEvents}
+${'='.repeat(50)}
 
 DETAILED SESSION EVENTS:
 ${sessionData.events.length > 0 
@@ -523,25 +510,22 @@ ${sessionData.events.length > 0
   : 'No events recorded'}
 
 ${'='.repeat(50)}
-SUMMARY:
-- Session Duration: ${sessionData.duration}
-- Total Operations: ${sessionStats.controlEvents}
-- Emergency Actions: ${sessionStats.emergencyEvents}
-- System Status: ${sessionStats.systemEvents > 0 ? 'Active' : 'Inactive'}
-- Arduino Communication: ${sessionStats.arduinoEvents > 0 ? 'Successful' : 'No Communication'}
-- Safety Protocols: ${sessionStats.safetyEvents > 0 ? 'Engaged' : 'Standard'}
-
 End of Report
 AEROSPIN Global Control System
-      `;
+          `;
+          
+          await Share.share({
+            message: reportText,
+            title: 'AEROSPIN Session Report',
+          });
+        }
+      }
       
-      await Share.share({
-        message: reportText,
-        title: 'AEROSPIN Session Report',
-      });
+      setIsRefreshing(false);
     } catch (error) {
-      console.error('Failed to share report:', error);
-      Alert.alert('Share Failed', 'Unable to share report at this time.');
+      console.error('Failed to generate PDF:', error);
+      Alert.alert('Export Failed', 'Unable to generate PDF report. Please try again.');
+      setIsRefreshing(false);
     }
   };
 
@@ -574,7 +558,7 @@ AEROSPIN Global Control System
                 colors={isRefreshing ? ['#16a34a', '#15803d'] : ['#22c55e', '#16a34a']}
                 style={styles.actionButtonGradient}
               >
-                <Activity 
+                <RefreshCw 
                   size={isTablet ? 18 : 16} 
                   color="#ffffff" 
                   style={isRefreshing ? styles.rotating : undefined}
@@ -593,7 +577,39 @@ AEROSPIN Global Control System
                 styles.actionButton,
                 isTablet && styles.tabletActionButton
               ]}
-              onPress={handleShareReport}
+              onPress={() => {
+                // Share as text
+                const reportText = `
+AEROSPIN SESSION REPORT
+Generated: ${new Date().toLocaleString()}
+Session Start: ${sessionData.startTime}
+Duration: ${sessionData.duration}
+${'='.repeat(50)}
+
+SESSION STATISTICS:
+Total Events: ${sessionStats.totalEvents}
+Control Operations: ${sessionStats.controlEvents}
+System Events: ${sessionStats.systemEvents}
+Emergency Events: ${sessionStats.emergencyEvents}
+Arduino Communications: ${sessionStats.arduinoEvents}
+Safety Events: ${sessionStats.safetyEvents}
+${'='.repeat(50)}
+
+DETAILED SESSION EVENTS:
+${sessionData.events.length > 0 
+  ? sessionData.events.map((event, index) => `${index + 1}. ${event}`).join('\n')
+  : 'No events recorded'}
+
+${'='.repeat(50)}
+End of Report
+AEROSPIN Global Control System
+                `;
+                
+                Share.share({
+                  message: reportText,
+                  title: 'AEROSPIN Session Report',
+                });
+              }}
               activeOpacity={0.8}
             >
               <LinearGradient
@@ -776,6 +792,69 @@ AEROSPIN Global Control System
             </View>
           </View>
         </View>
+
+        {/* Live Events Log */}
+        <View style={styles.eventsHeader}>
+          <Text style={[
+            styles.eventsTitle,
+            isTablet && styles.tabletEventsTitle
+          ]}>
+            Live Events Log ({sessionStats.totalEvents} events)
+          </Text>
+        </View>
+        
+        <ScrollView 
+          style={[
+            styles.eventsContainer,
+            isTablet && styles.tabletEventsContainer
+          ]} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.eventsContent}
+        >
+          {memoizedEvents.length > 0 ? (
+            memoizedEvents.map((eventItem) => (
+              <View key={eventItem.id} style={[
+                styles.eventItem,
+                isTablet && styles.tabletEventItem
+              ]}>
+                <Text style={[
+                  styles.eventIndex,
+                  isTablet && styles.tabletEventIndex
+                ]}>
+                  {eventItem.index + 1}.
+                </Text>
+                <Text style={[
+                  styles.eventText,
+                  isTablet && styles.tabletEventText,
+                  // Enhanced event styling based on actual content patterns
+                  (eventItem.content.includes('🚨') || eventItem.content.includes('EMERGENCY')) && styles.emergencyEvent,
+                  (eventItem.content.includes('🎮') || eventItem.content.includes('changed:') || eventItem.content.includes('BRAKE RELEASE')) && styles.controlEvent,
+                  (eventItem.content.includes('✅ Arduino') || eventItem.content.includes('❌ Arduino') || eventItem.content.includes('📡')) && styles.arduinoEvent,
+                  (eventItem.content.includes('🛡️') || eventItem.content.includes('🔒') || eventItem.content.includes('🔓') || eventItem.content.includes('Safety')) && styles.safetyEvent,
+                  (eventItem.content.includes('🚀') || eventItem.content.includes('🏁') || eventItem.content.includes('SESSION')) && styles.sessionEvent,
+                ]}>
+                  {eventItem.content}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.noEventsContainer}>
+              <FileText size={isTablet ? 32 : 24} color="#9ca3af" />
+              <Text style={[
+                styles.noEventsText,
+                isTablet && styles.tabletNoEventsText
+              ]}>
+                No events recorded yet
+              </Text>
+              <Text style={[
+                styles.noEventsSubtext,
+                isTablet && styles.tabletNoEventsSubtext
+              ]}>
+                Device operations will be logged here during the session
+              </Text>
+            </View>
+          )}
+        </ScrollView>
       </ViewShot>
     </View>
   );
@@ -959,5 +1038,108 @@ const styles = StyleSheet.create({
   },
   tabletStatLabel: {
     fontSize: 12,
+  },
+  eventsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  eventsTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#0f172a',
+  },
+  tabletEventsTitle: {
+    fontSize: 18,
+  },
+  eventsContainer: {
+    maxHeight: 300,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+  },
+  tabletEventsContainer: {
+    maxHeight: 400,
+    borderRadius: 12,
+  },
+  eventsContent: {
+    padding: 12,
+  },
+  eventItem: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  tabletEventItem: {
+    paddingVertical: 10,
+  },
+  eventIndex: {
+    fontSize: 11,
+    fontFamily: 'Inter-Medium',
+    color: '#64748b',
+    width: 24,
+    marginRight: 8,
+  },
+  tabletEventIndex: {
+    fontSize: 13,
+    width: 28,
+    marginRight: 12,
+  },
+  eventText: {
+    fontSize: 11,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+    flex: 1,
+    lineHeight: 16,
+  },
+  tabletEventText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  controlEvent: {
+    color: '#1e40af',
+    fontFamily: 'Inter-Medium',
+  },
+  emergencyEvent: {
+    color: '#dc2626',
+    fontFamily: 'Inter-Bold',
+  },
+  arduinoEvent: {
+    color: '#8b5cf6',
+    fontFamily: 'Inter-Medium',
+  },
+  safetyEvent: {
+    color: '#06b6d4',
+    fontFamily: 'Inter-Medium',
+  },
+  sessionEvent: {
+    color: '#22c55e',
+    fontFamily: 'Inter-Bold',
+  },
+  noEventsContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  noEventsText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#6b7280',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  tabletNoEventsText: {
+    fontSize: 16,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  noEventsSubtext: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  tabletNoEventsSubtext: {
+    fontSize: 14,
   },
 });

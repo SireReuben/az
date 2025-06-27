@@ -693,6 +693,28 @@ export function useDeviceState() {
         </div>
         
         <div class="section">
+          <div class="section-title">Device State Summary</div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">Final Direction</div>
+              <div class="info-value">${deviceState.direction}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Final Brake Position</div>
+              <div class="info-value">${deviceState.brake}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Final Speed</div>
+              <div class="info-value">${deviceState.speed}%</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">Connection Status</div>
+              <div class="info-value">${isConnected ? 'Connected' : 'Offline'}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="section">
           <div class="section-title">Detailed Event Log</div>
           <div class="events-container">
             ${sessionData.events.length > 0 
@@ -731,7 +753,7 @@ export function useDeviceState() {
       </body>
       </html>
     `;
-  }, [sessionData]);
+  }, [sessionData, deviceState, isConnected]);
 
   // Generate and share PDF report
   const generateAndSharePdf = useCallback(async () => {
@@ -767,6 +789,13 @@ SESSION STATISTICS:
 Total Events: ${sessionData.events.length}
 ${'='.repeat(50)}
 
+DEVICE STATE SUMMARY:
+Direction: ${deviceState.direction}
+Brake Position: ${deviceState.brake}
+Speed: ${deviceState.speed}%
+Connection: ${isConnected ? 'Connected' : 'Offline'}
+${'='.repeat(50)}
+
 DETAILED SESSION EVENTS:
 ${sessionData.events.length > 0 
   ? sessionData.events.map((event, index) => `${index + 1}. ${event}`).join('\n')
@@ -788,7 +817,7 @@ AEROSPIN Global Control System
       Alert.alert('Export Failed', 'Unable to generate PDF report. Please try again.');
       return false;
     }
-  }, [sessionData, generatePdfContent]);
+  }, [sessionData, deviceState, isConnected, generatePdfContent]);
 
   const startSession = useCallback(async () => {
     const sessionStartTime = new Date();
